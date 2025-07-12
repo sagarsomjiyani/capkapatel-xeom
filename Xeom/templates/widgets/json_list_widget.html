@@ -1,0 +1,167 @@
+<div class="json-list-widget" id="{{ widget.id }}">
+    <div class="json-list-items">
+        {# Render existing items #}
+        {% for item in widget.initial_forms %}
+            <div class="input-group mb-2 json-list-item-row">
+                <input type="number" name="{{ widget.name }}[{{ forloop.counter0 }}][sl_no]"
+                       class="form-control form-control-sm json-sl-no" placeholder="SL No." min="1"
+                       value="{{ item.sl_no }}" {% if widget.attrs.readonly %}readonly{% endif %}>
+                <input type="date" name="{{ widget.name }}[{{ forloop.counter0 }}][date]"
+                       class="form-control form-control-sm json-date" value="{{ item.date }}"
+                       {% if widget.attrs.readonly %}readonly{% endif %}>
+                <input type="number" name="{{ widget.name }}[{{ forloop.counter0 }}][percentage]"
+                       class="form-control form-control-sm json-percentage" placeholder="Percentage" min="0" max="100"
+                       value="{{ item.percentage }}" {% if widget.attrs.readonly %}readonly{% endif %}>
+                {% if not widget.attrs.readonly %}
+                <button type="button" class="btn btn-outline-danger btn-sm remove-json-list-item">
+                    <i class="fas fa-minus-circle"></i>
+                </button>
+                {% endif %}
+            </div>
+        {% empty %}
+            {# Render one empty row if no initial data, and not readonly #}
+            {% if not widget.attrs.readonly %}
+            <div class="input-group mb-2 json-list-item-row">
+                <input type="number" name="{{ widget.name }}[0][sl_no]"
+                       class="form-control form-control-sm json-sl-no" placeholder="SL No." min="1">
+                <input type="date" name="{{ widget.name }}[0][date]"
+                       class="form-control form-control-sm json-date" type="date">
+                <input type="number" name="{{ widget.name }}[0][percentage]"
+                       class="form-control form-control-sm json-percentage" placeholder="Percentage" min="0" max="100">
+                <button type="button" class="btn btn-outline-danger btn-sm remove-json-list-item">
+                    <i class="fas fa-minus-circle"></i>
+                </button>
+            </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+    {% if not widget.attrs.readonly %}
+    <button type="button" class="btn btn-outline-success btn-sm add-json-list-item mt-2">
+        <i class="fas fa-plus-circle"></i> Add Stage
+    </button>
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var widgetContainer = document.getElementById('{{ widget.id }}');
+    if (!widgetContainer) return; // Exit if container not found
+
+    var itemsContainer = widgetContainer.querySelector('.json-list-items');
+    var addButton = widgetContainer.querySelector('.add-json-list-item');
+    var fieldName = '{{ widget.name }}'; // The base name for the form field (e.g., 'po_release')
+
+    // Function to update input names with correct indices
+    function updateItemIndices() {
+        itemsContainer.querySelectorAll('.json-list-item-row').forEach(function(row, index) {
+            row.querySelectorAll('input').forEach(function(input) {
+                var nameParts = input.name.split('[');
+                if (nameParts.length > 2) { // Expecting something like 'po_release[0][sl_no]'
+                    input.name = `${nameParts[0]}[${index}][${nameParts[2].replace(']', '')}]`;
+                }
+            });
+        });
+    }
+
+    // Add item functionality
+    if (addButton) {
+        addButton.addEventListener('click', function() {
+            var newItemIndex = itemsContainer.children.length;
+            var newRow = document.createElement('div');
+            newRow.className = 'input-group mb-2 json-list-item-row';
+            newRow.innerHTML = `
+                <input type="number" name="${fieldName}[${newItemIndex}][sl_no]" class="form-control form-control-sm json-sl-no" placeholder="SL No." min="1">
+                <input type="date" name="${fieldName}[${newItemIndex}][date]" class="form-control form-control-sm json-date" type="date">
+                <input type="number" name="${fieldName}[${newItemIndex}][percentage]" class="form-control form-control-sm json-percentage" placeholder="Percentage" min="0" max="100">
+                <button type="button" class="btn btn-outline-danger btn-sm remove-json-list-item">
+                    <i class="fas fa-minus-circle"></i>
+                </button>
+            `;
+            itemsContainer.appendChild(newRow);
+            updateItemIndices(); // Re-index all items after adding
+        });
+    }
+
+    // Remove item functionality (event delegation)
+    itemsContainer.addEventListener('click', function(event) {
+        if (event.target.closest('.remove-json-list-item')) {
+            var rowToRemove = event.target.closest('.json-list-item-row');
+            if (rowToRemove) {
+                // Ensure at least one row remains if it's the only one
+                if (itemsContainer.children.length > 1 || (itemsContainer.children.length === 1 && !{{ widget.attrs.readonly|lower }})) {
+                    rowToRemove.remove();
+                    updateItemIndices(); // Re-index all items after removing
+                } else if (itemsContainer.children.length === 1 && {{ widget.attrs.readonly|lower }}) {
+                    // If it's the only row and readonly, don't remove, just clear
+                    rowToRemove.querySelectorAll('input').forEach(input => input.value = '');
+                }
+            }
+        }
+    });
+
+    // Initial check for empty state on load for non-readonly fields
+    // If there are no initial forms and it's not readonly, ensure one empty row exists
+    if (itemsContainer.children.length === 0 && !{{ widget.attrs.readonly|lower }}) {
+        // Simulate a click on the add button to create the first empty row
+        if (addButton) {
+            addButton.click();
+            // Clear the default 0 sl_no if it was added by the default rendering
+            let firstSlNoInput = itemsContainer.querySelector('.json-sl-no');
+            if (firstSlNoInput && firstSlNoInput.value === '0') {
+                firstSlNoInput.value = '';
+            }
+        }
+    }
+
+    // Handle initial state for readonly fields
+    if ({{ widget.attrs.readonly|lower }}) {
+        widgetContainer.querySelectorAll('input').forEach(input => {
+            input.setAttribute('readonly', 'true');
+            input.style.backgroundColor = '#e9ecef';
+            input.style.cursor = 'not-allowed';
+        });
+        if (addButton) {
+            addButton.style.display = 'none';
+        }
+        widgetContainer.querySelectorAll('.remove-json-list-item').forEach(button => {
+            button.style.display = 'none';
+        });
+    }
+});
+</script>
+
+<style>
+    /* Basic styling for the JSON list widget */
+    .json-list-widget {
+        border: 1px solid #dee2e6;
+        border-radius: 0.25rem;
+        padding: 1rem;
+        background-color: #f8f9fa;
+        margin-bottom: 1rem;
+    }
+    .json-list-item-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem; /* Space between inputs */
+    }
+    .json-list-item-row input {
+        flex: 1; /* Distribute space equally */
+        min-width: 80px; /* Ensure inputs don't get too small */
+    }
+    .json-list-item-row .json-sl-no {
+        flex: 0.5; /* Make SL No. input a bit smaller */
+    }
+    .json-list-item-row .json-percentage {
+        flex: 0.7; /* Make percentage input a bit smaller */
+    }
+    .remove-json-list-item {
+        flex-shrink: 0; /* Don't let button shrink */
+    }
+    .json-list-widget .invalid-feedback {
+        display: block; /* Ensure Django errors are visible */
+        width: 100%;
+        margin-top: 0.25rem;
+        font-size: 0.875em;
+        color: #dc3545;
+    }
+</style>

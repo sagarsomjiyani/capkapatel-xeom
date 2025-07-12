@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+<!-- Order List specific styles -->
+<style>
+    .status-badge {
+        font-size: 0.875rem;
+        padding: 0.3em 0.6em;
+        border-radius: 0.5rem;
+        font-weight: 600;
+    }
+    .table-responsive {
+        min-height: 400px; /* Ensures consistent height */
+        overflow-x: auto; /* Ensure horizontal scrolling on small screens */
+    }
+    .search-form {
+        background: var(--card-bg);
+        padding: 1.5rem;
+        border-radius: 15px;
+        margin-bottom: 1.5rem;
+        box-shadow: var(--shadow-light);
+    }
+    .table thead th {
+        white-space: nowrap; /* Prevent wrapping in table headers */
+    }
+    .table tbody td {
+        white-space: nowrap; /* Prevent wrapping in table cells */
+    }
+    .btn-group .btn {
+        border-radius: 8px !important;
+        margin-right: 5px; /* Spacing between buttons in group */
+    }
+    .btn-group .btn:last-child {
+        margin-right: 0;
+    }
+    .modal-content {
+        border-radius: 15px;
+        box-shadow: var(--shadow-medium);
+    }
+    .modal-header {
+        background-color: var(--primary-color);
+        color: white;
+        border-top-left-radius: 15px;
+        border-top-right-radius: 15px;
+        border-bottom: none;
+    }
+    .modal-header .btn-close {
+        filter: invert(1); /* Make close button white */
+    }
+    .modal-footer .btn {
+        border-radius: 8px;
+    }
+</style>
+{% endblock extra_css %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <a href="{% url 'order_create' %}" class="btn btn-primary">
+        <i class="fas fa-plus me-2"></i> Create New Order
+    </a>
+</div>
+
+<!-- Search and Filter Form -->
+<div class="search-form">
+    <form method="get" class="row g-3 align-items-end">
+        <div class="col-md-4 col-lg-4">
+            <label for="search-input" class="form-label">Search Orders</label>
+            <input type="text" name="search" id="search-input" class="form-control" placeholder="Order No., Equipment, Site..." value="{{ request.GET.search }}">
+        </div>
+        <div class="col-md-3 col-lg-3">
+            <label for="status-select" class="form-label">Filter by Status</label>
+            <select name="status" id="status-select" class="form-select">
+                <option value="">All Status</option>
+                <option value="In Progress" {% if request.GET.status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                <option value="Completed" {% if request.GET.status == 'Completed' %}selected{% endif %}>Completed</option>
+            </select>
+        </div>
+        <div class="col-md-5 col-lg-5 d-flex justify-content-end">
+            <button type="submit" class="btn btn-outline-primary me-2">
+                <i class="fas fa-search me-1"></i> Search
+            </button>
+            <a href="{% url 'order_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-times me-1"></i> Clear
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Orders Table -->
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <caption>Displaying {{ page_obj.start_index|default:0 }}-{{ page_obj.end_index|default:0 }} of {{ paginator.count }} orders</caption>
+                <thead class="table-dark">
+                    <tr>
+                        <th>Order Number</th>
+                        <th>Equipment No.</th>
+                        <th>Agreement No.</th>
+                        <th>Site Name</th>
+                        <th>Block</th>
+                        <th>Lift No.</th>
+                        <th>Lift Qty</th>
+                        <th>Sales Executive</th>
+                        <th>Supervisor</th>
+                        <th class="table-date-col">Order Release</th>
+                        <th class="table-date-col">Supervisor Decided</th>
+                        <th class="table-date-col">BOM Ready</th>
+                        <th class="table-date-col">GAD Send for Sign</th>
+                        <th class="table-date-col">Kick Off Meeting</th>
+                        <th class="table-date-col">Scaffolding Message</th>
+                        <th class="table-date-col">Scaffolding Delivery</th>
+                        <th class="table-date-col">Erector File Ready</th>
+                        <th class="table-date-col">Scaffolding Installation</th>
+                        <th class="table-date-col">Reading Receipt</th>
+                        <th class="table-json-col">PO Release</th>
+                        <th class="table-json-col">Material Dump</th>
+                        <th class="table-date-col">Installation</th>
+                        <th class="table-date-col">Lift Handover</th>
+                        <th class="table-date-col">GAD Sign Complete</th>
+                        <th class="table-date-col">Form A Submitted</th>
+                        <th class="table-date-col">Form A Permission Received</th>
+                        <th class="table-date-col">Form B Submitted</th>
+                        <th class="table-date-col">License Received</th>
+                        <th class="table-date-col">License Handover</th>
+                        <th class="table-date-col">Handover OC Submitted</th>
+                        <th class="table-date-col">Email to Maintenance</th>
+                        <th class="table-date-col">Receipt by Maintenance</th>
+                        <th>Status</th>
+                        <th class="table-actions">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'order_detail' order.order_number %}" class="text-decoration-none text-primary">
+                                <strong>{{ order.order_number }}</strong>
+                            </a>
+                        </td>
+                        <td>{{ order.equipment_number|default:"N/A" }}</td>
+                        <td>{{ order.agreement_number|default:"N/A" }}</td>
+                        <td>{{ order.site_name|default:"N/A" }}</td>
+                        <td>{{ order.block|default:"N/A" }}</td>
+                        <td>{{ order.lift_number|default:"N/A" }}</td>
+                        <td>{{ order.lift_quantity|default:"N/A" }}</td>
+                        <td>{{ order.sales_executive.get_full_name|default:order.sales_executive.username }}</td>
+                        <td>{{ order.supervisor.get_full_name|default:"N/A" }}</td>
+                        <td>{{ order.order_release|date:"M d, Y"|default:"N/A" }}</td>
+                        <td>{{ order.supervisor_decided|date:"M d, Y"|default:"N/A" }}</td>
+                        <td>{{ order.bom_ready|date:"M d, Y"|default:"N/A" }}</td>
+                        <td>{{ order.gad_send_for_sign|date:"M d, Y"|default:"N/A" }}</td>
+                        <td>{{ order.kick_off_meeting|date:"M d, Y"|default:"N/A" }}</td>
+                        <td>{{ order.scaffolding_message|date:"M d, Y"|default:"N/A" }}</td>
+                        <td>{{ order.scaffolding_delivery|date:"M d, Y"|default:"N/A" }}</td>
+                        <td>{{ order.erector_file_ready|date:"M d, Y"|default:"N/A" }}</td>
+                        <td>{{ order.scaffolding_installation|date:"M d, Y"|default:"N/A" }}</td>
+                        <td>{{ order.reading_receipt|date:"M d, Y"|default:"N/A" }}</td>
+                        <td>
+                            {% if order.po_release %}
+                                <span class="text-muted small">({{ order.po_release|length }} stages)</span>
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if order.material_dump %}
+                                <span class="text-muted small">({{ order.material_dump|length }} stages)</span>
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </td>
+                        <td>{{ order.installation|date:"M d, Y"|default:"N/A" }}</td>
+                        <td>{{ order.lift_handover|date:"M d, Y"|default:"N/A" }}</td>
+                        <td>{{ order.gad_sign_complete|date:"M d, Y"|default:"N/A" }}</td>
+                        <td>{{ order.form_a_submitted|date:"M d, Y"|default:"N/A" }}</td>
+                        <td>{{ order.form_a_permission_received|date:"M d, Y"|default:"N/A" }}</td>
+                        <td>{{ order.form_b_submitted|date:"M d, Y"|default:"N/A" }}</td>
+                        <td>{{ order.license_received|date:"M d, Y"|default:"N/A" }}</td>
+                        <td>{{ order.license_handover|date:"M d, Y"|default:"N/A" }}</td>
+                        <td>{{ order.handover_oc_submitted|date:"M d, Y"|default:"N/A" }}</td>
+                        <td>{{ order.email_to_maintenance|date:"M d, Y"|default:"N/A" }}</td>
+                        <td>{{ order.receipt_by_maintenance|date:"M d, Y"|default:"N/A" }}</td>
+                        <td>
+                            {% if order.status == 'Completed' %}
+                                <span class="badge bg-success status-badge">{{ order.status }}</span>
+                            {% else %}
+                                <span class="badge bg-warning text-dark status-badge">{{ order.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <a href="{% url 'order_detail' order.order_number %}" class="btn btn-sm btn-outline-info" title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{% url 'order_update' order.order_number %}" class="btn btn-sm btn-outline-primary" title="Edit Order">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="confirmDelete('{{ order.order_number }}')" title="Delete Order">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" class="text-center py-5">
+                            <i class="fas fa-inbox fa-4x text-muted mb-3"></i>
+                            <p class="lead text-muted">No orders found matching your criteria.</p>
+                            <p class="text-muted">Try adjusting your search or filters.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if is_paginated %}
+        <nav aria-label="Page navigation" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">Previous</a>
+                    </li>
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                        <li class="page-item active" aria-current="page">
+                            <span class="page-link">{{ num }}</span>
+                        </li>
+                    {% else %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ num }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">{{ num }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">Next</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to delete this order? This action cannot be undone and will permanently remove all associated data.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a id="deleteConfirmBtn" href="#" class="btn btn-danger">Delete Permanently</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block extra_js %}
+<script>
+    function confirmDelete(orderNumber) {
+        const deleteUrl = `/xeom/${orderNumber}/delete/`; // Ensure this URL is correct in your Django urls.py
+        document.getElementById('deleteConfirmBtn').href = deleteUrl;
+        const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+        deleteModal.show();
+    }
+
+    // Auto-submit search form on status change
+    document.getElementById('status-select').addEventListener('change', function() {
+        this.form.submit();
+    });
+</script>
+{% endblock extra_js %}

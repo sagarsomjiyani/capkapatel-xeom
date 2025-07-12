@@ -1,0 +1,381 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block extra_css %}
+<!-- Dashboard specific styles -->
+<style>
+    .dashboard-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .dashboard-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+    }
+
+    .metric-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        text-align: center;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        transition: transform 0.3s ease;
+        border-left: 4px solid;
+    }
+
+    .metric-card:hover {
+        transform: translateY(-3px);
+    }
+
+    .metric-card.primary { border-left-color: #007bff; }
+    .metric-card.success { border-left-color: #28a745; }
+    .metric-card.warning { border-left-color: #ffc107; }
+    .metric-card.danger { border-left-color: #dc3545; }
+    .metric-card.info { border-left-color: #17a2b8; }
+
+    .metric-number {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .metric-label {
+        color: #6c757d;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .chart-container {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        margin-bottom: 2rem;
+    }
+
+    .recent-activity {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    }
+
+    .activity-item {
+        padding: 1rem;
+        border-bottom: 1px solid #eee;
+        transition: background-color 0.3s ease;
+    }
+
+    .activity-item:hover {
+        background-color: #f8f9fa;
+    }
+
+    .activity-item:last-child {
+        border-bottom: none;
+    }
+
+    .status-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+
+    .status-completed { background: #d4edda; color: #155724; }
+    .status-progress { background: #fff3cd; color: #856404; }
+
+    .alert-custom {
+        border-left: 4px solid;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .page-title {
+        font-weight: 700;
+        color: #2c3e50;
+        margin-bottom: 2rem;
+    }
+
+    .progress-ring {
+        width: 80px;
+        height: 80px;
+        margin: 0 auto 1rem;
+    }
+
+    .progress-ring-circle {
+        stroke: #e9ecef;
+        stroke-width: 8;
+        fill: transparent;
+        r: 30;
+        cx: 40;
+        cy: 40;
+    }
+
+    .progress-ring-progress {
+        stroke: #28a745;
+        stroke-width: 8;
+        fill: transparent;
+        r: 30;
+        cx: 40;
+        cy: 40;
+        stroke-dasharray: 188.5;
+        stroke-dashoffset: 188.5;
+        transform: rotate(-90deg);
+        transform-origin: 40px 40px;
+        transition: stroke-dashoffset 0.5s ease;
+    }
+</style>
+{% endblock extra_css %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="page-title">
+        <i class="fas fa-chart-line"></i> Dashboard
+    </h1>
+    <div class="d-flex align-items-center">
+        <span class="me-3">Welcome, {{ user.get_full_name|default:user.username }}</span>
+        <a href="{% url 'order_create' %}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> New Order
+        </a>
+    </div>
+</div>
+
+<!-- Alerts -->
+<!-- {% if alerts %}
+<div class="row mb-4">
+    <div class="col-12">
+        {% for alert in alerts %}
+        <div class="alert alert-{{ alert.type }} alert-custom border-{{ alert.type }}">
+            <i class="fas fa-{% if alert.type == 'success' %}check-circle{% elif alert.type == 'warning' %}exclamation-triangle{% elif alert.type == 'danger' %}times-circle{% else %}info-circle{% endif %} me-2"></i>
+            {{ alert.message }}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %} -->
+
+<!-- Key Metrics -->
+<div class="row mb-4">
+    <div class="col-md-2">
+        <div class="metric-card primary">
+            <div class="metric-number text-primary">{{ total_orders }}</div>
+            <div class="metric-label">Total Orders</div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="metric-card success">
+            <div class="metric-number text-success">{{ completed_orders }}</div>
+            <div class="metric-label">Completed</div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="metric-card warning">
+            <div class="metric-number text-warning">{{ in_progress_orders }}</div>
+            <div class="metric-label">In Progress</div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="metric-card info">
+            <div class="metric-number text-info">{{ recent_orders }}</div>
+            <div class="metric-label">Last 30 Days</div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="metric-card danger">
+            <div class="metric-number text-danger">{{ overdue_orders }}</div>
+            <div class="metric-label">Overdue</div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="metric-card success">
+            <div class="metric-number text-success">{{ completion_rate }}%</div>
+            <div class="metric-label">Completion Rate</div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="chart-container">
+            <h5 class="mb-3"><i class="fas fa-chart-line me-2"></i>Monthly Order Trends</h5>
+            <canvas id="monthlyChart"></canvas>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="chart-container">
+            <h5 class="mb-3"><i class="fas fa-chart-pie me-2"></i>Order Status Distribution</h5>
+            <canvas id="statusChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Phase Analysis -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="chart-container">
+            <h5 class="mb-3"><i class="fas fa-tasks me-2"></i>Order Phase Progress</h5>
+            <div class="row text-center">
+                <div class="col-2">
+                    <div class="metric-number text-primary">{{ phase_analysis.bom_ready }}</div>
+                    <small class="text-muted">BOM Ready</small>
+                </div>
+                <div class="col-2">
+                    <div class="metric-number text-info">{{ phase_analysis.kick_off_meeting }}</div>
+                    <small class="text-muted">Kick Off</small>
+                </div>
+                <div class="col-2">
+                    <div class="metric-number text-warning">{{ phase_analysis.scaffolding_installation }}</div>
+                    <small class="text-muted">Scaffolding</small>
+                </div>
+                <div class="col-2">
+                    <div class="metric-number text-danger">{{ phase_analysis.installation }}</div>
+                    <small class="text-muted">Installation</small>
+                </div>
+                <div class="col-2">
+                    <div class="metric-number text-success">{{ phase_analysis.lift_handover }}</div>
+                    <small class="text-muted">Handover</small>
+                </div>
+                <div class="col-2">
+                    <div class="metric-number text-primary">{{ phase_analysis.license_received }}</div>
+                    <small class="text-muted">Licensed</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="chart-container">
+            <h5 class="mb-3"><i class="fas fa-building me-2"></i>Top Sites</h5>
+            {% for site in top_sites %}
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span>{{ site.site_name }}</span>
+                <span class="badge bg-primary">{{ site.order_count }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="row">
+    <div class="col-md-8">
+        <div class="recent-activity">
+            <h5 class="mb-3"><i class="fas fa-clock me-2"></i>Recent Activity</h5>
+            {% for order in recent_activity %}
+            <div class="activity-item">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>{{ order.order_number }}</strong> - {{ order.site_name }}
+                        <br>
+                        <small class="text-muted">{{ order.equipment_number }}</small>
+                    </div>
+                    <div class="text-end">
+                        <span class="status-badge status-{{ order.status|lower|cut:' ' }}">
+                            {{ order.status }}
+                        </span>
+                        <br>
+                        <small class="text-muted">{{ order.order_release|date:"M d, Y" }}</small>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="chart-container">
+            <h5 class="mb-3"><i class="fas fa-user-tie me-2"></i>Supervisor Performance</h5>
+            {% for supervisor in supervisor_performance %}
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <strong>{{ supervisor.get_full_name|default:supervisor.username }}</strong>
+                    <br>
+                    <small class="text-muted">{{ supervisor.completed_orders }}/{{ supervisor.total_orders }} completed</small>
+                </div>
+                <div class="progress-ring">
+                    <svg class="progress-ring">
+                        <circle class="progress-ring-circle" />
+                        <circle class="progress-ring-progress"
+                                stroke-dashoffset="calc(188.5 - (188.5 * {{ supervisor.completion_percentage|default:0 }}) / 100)" />
+                    </svg>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block extra_js %}
+<!-- Chart.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<script>
+    // Monthly Chart
+    const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
+    const monthlyData = {{ monthly_data|safe }};
+
+    new Chart(monthlyCtx, {
+        type: 'line',
+        data: {
+            labels: monthlyData.map(d => d.month),
+            datasets: [{
+                label: 'Orders',
+                data: monthlyData.map(d => d.orders),
+                borderColor: '#007bff',
+                backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    // Status Chart
+    const statusCtx = document.getElementById('statusChart').getContext('2d');
+    const statusData = {{ status_data|safe }};
+
+    new Chart(statusCtx, {
+        type: 'doughnut',
+        data: {
+            labels: statusData.map(d => d.status),
+            datasets: [{
+                data: statusData.map(d => d.count),
+                backgroundColor: ['#28a745', '#ffc107'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    // Auto-refresh every 5 minutes
+    setTimeout(function() {
+        location.reload();
+    }, 300000);
+</script>
+{% endblock extra_js %}
