@@ -1,18 +1,31 @@
+{# xeom/templates/json_list_widget.html #}
+
 <div class="json-list-widget" id="{{ widget.id }}">
+    {# Hidden input to hold the JSON string value for the field #}
+    {# widget.value here will be the JSON string prepared by JSONListWidget.get_context #}
+    {# Use the is_readonly boolean flag passed from get_context #}
+    <input type="hidden" name="{{ widget.name }}" id="{{ widget.id }}_hidden_input" value="{{ widget.value }}" data-readonly="{{ widget.is_readonly|yesno:"true,false" }}">
+
     <div class="json-list-items">
         {# Render existing items #}
         {% for item in widget.initial_forms %}
-            <div class="input-group mb-2 json-list-item-row">
-                <input type="number" name="{{ widget.name }}[{{ forloop.counter0 }}][sl_no]"
+            <div class="input-group mb-2 json-list-item-row" data-index="{{ forloop.counter0 }}">
+                <input type="number" name="{{ widget.name }}_item_{{ forloop.counter0 }}_sl_no"
                        class="form-control form-control-sm json-sl-no" placeholder="SL No." min="1"
-                       value="{{ item.sl_no }}" {% if widget.attrs.readonly %}readonly{% endif %}>
-                <input type="date" name="{{ widget.name }}[{{ forloop.counter0 }}][date]"
-                       class="form-control form-control-sm json-date" value="{{ item.date }}"
-                       {% if widget.attrs.readonly %}readonly{% endif %}>
-                <input type="number" name="{{ widget.name }}[{{ forloop.counter0 }}][percentage]"
+                       value="{{ item.sl_no|default:"" }}" 
+                       {# Use the is_readonly flag for readonly attribute #}
+                       {% if widget.is_readonly %}readonly{% endif %}>
+                <input type="date" name="{{ widget.name }}_item_{{ forloop.counter0 }}_date"
+                       class="form-control form-control-sm json-date" value="{{ item.date|default:"" }}"
+                       {# Use the is_readonly flag for readonly attribute #}
+                       {% if widget.is_readonly %}readonly{% endif %}>
+                <input type="number" name="{{ widget.name }}_item_{{ forloop.counter0 }}_percentage"
                        class="form-control form-control-sm json-percentage" placeholder="Percentage" min="0" max="100"
-                       value="{{ item.percentage }}" {% if widget.attrs.readonly %}readonly{% endif %}>
-                {% if not widget.attrs.readonly %}
+                       value="{{ item.percentage|default:"" }}" 
+                       {# Use the is_readonly flag for readonly attribute #}
+                       {% if widget.is_readonly %}readonly{% endif %}>
+                {# Only show remove button if not readonly #}
+                {% if not widget.is_readonly %}
                 <button type="button" class="btn btn-outline-danger btn-sm remove-json-list-item">
                     <i class="fas fa-minus-circle"></i>
                 </button>
@@ -20,13 +33,13 @@
             </div>
         {% empty %}
             {# Render one empty row if no initial data, and not readonly #}
-            {% if not widget.attrs.readonly %}
-            <div class="input-group mb-2 json-list-item-row">
-                <input type="number" name="{{ widget.name }}[0][sl_no]"
+            {% if not widget.is_readonly %}
+            <div class="input-group mb-2 json-list-item-row" data-index="0">
+                <input type="number" name="{{ widget.name }}_item_0_sl_no"
                        class="form-control form-control-sm json-sl-no" placeholder="SL No." min="1">
-                <input type="date" name="{{ widget.name }}[0][date]"
-                       class="form-control form-control-sm json-date" type="date">
-                <input type="number" name="{{ widget.name }}[0][percentage]"
+                <input type="date" name="{{ widget.name }}_item_0_date"
+                       class="form-control form-control-sm json-date">
+                <input type="number" name="{{ widget.name }}_item_0_percentage"
                        class="form-control form-control-sm json-percentage" placeholder="Percentage" min="0" max="100">
                 <button type="button" class="btn btn-outline-danger btn-sm remove-json-list-item">
                     <i class="fas fa-minus-circle"></i>
@@ -35,98 +48,129 @@
             {% endif %}
         {% endfor %}
     </div>
-    {% if not widget.attrs.readonly %}
-    <button type="button" class="btn btn-outline-success btn-sm add-json-list-item mt-2">
-        <i class="fas fa-plus-circle"></i> Add Stage
+
+    {# Only show Add Item button if not readonly #}
+    {% if not widget.is_readonly %}
+    <button type="button" class="btn btn-outline-primary btn-sm mt-2 add-json-list-item">
+        <i class="fas fa-plus-circle"></i> Add Item
     </button>
     {% endif %}
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    var widgetContainer = document.getElementById('{{ widget.id }}');
-    if (!widgetContainer) return; // Exit if container not found
+    // Function to update the hidden JSON input
+    function updateHiddenJsonInput(widgetContainer) {
+        const items = [];
+        widgetContainer.querySelectorAll('.json-list-item-row').forEach(row => {
+            const slNoInput = row.querySelector('.json-sl-no');
+            const dateInput = row.querySelector('.json-date');
+            const percentageInput = row.querySelector('.json-percentage');
 
-    var itemsContainer = widgetContainer.querySelector('.json-list-items');
-    var addButton = widgetContainer.querySelector('.add-json-list-item');
-    var fieldName = '{{ widget.name }}'; // The base name for the form field (e.g., 'po_release')
+            const slNo = slNoInput ? slNoInput.value : '';
+            const date = dateInput ? dateInput.value : '';
+            const percentage = percentageInput ? percentageInput.value : '';
 
-    // Function to update input names with correct indices
-    function updateItemIndices() {
-        itemsContainer.querySelectorAll('.json-list-item-row').forEach(function(row, index) {
-            row.querySelectorAll('input').forEach(function(input) {
-                var nameParts = input.name.split('[');
-                if (nameParts.length > 2) { // Expecting something like 'po_release[0][sl_no]'
-                    input.name = `${nameParts[0]}[${index}][${nameParts[2].replace(']', '')}]`;
+            // Only add item if at least one field is filled for that row
+            if (slNo || date || percentage) {
+                items.push({
+                    sl_no: slNo ? parseInt(slNo) : null,
+                    date: date || null,
+                    percentage: percentage ? parseFloat(percentage) : null
+                });
+            }
+        });
+        const hiddenInput = widgetContainer.querySelector('input[type="hidden"]');
+        if (hiddenInput) {
+            hiddenInput.value = JSON.stringify(items);
+        }
+    }
+
+    // Initialize all JSON list widgets on the page
+    document.querySelectorAll('.json-list-widget').forEach(widgetContainer => {
+        const addButton = widgetContainer.querySelector('.add-json-list-item');
+        const hiddenInput = widgetContainer.querySelector('input[type="hidden"]');
+        // JavaScript access is correct as dataset handles hyphenated attributes
+        const isReadonly = hiddenInput ? hiddenInput.dataset.readonly === 'true' : false; 
+
+        // Add Item button click handler
+        if (addButton && !isReadonly) {
+            addButton.addEventListener('click', function() {
+                const itemsContainer = widgetContainer.querySelector('.json-list-items');
+                const existingRows = itemsContainer.querySelectorAll('.json-list-item-row').length;
+                const lastRow = itemsContainer.lastElementChild;
+                let newIndex = 0;
+                if (lastRow && lastRow.dataset.index) {
+                    newIndex = parseInt(lastRow.dataset.index) + 1;
+                } else if (existingRows > 0) {
+                     // Fallback for cases where data-index might be missing but rows exist
+                     newIndex = existingRows;
                 }
+                
+                const newRow = document.createElement('div');
+                newRow.classList.add('input-group', 'mb-2', 'json-list-item-row');
+                newRow.dataset.index = newIndex; // Store index for reference
+
+                const widgetName = hiddenInput.name; // Use the hidden input's name as the base widget name
+                
+                newRow.innerHTML = `
+                    <input type="number" name="${widgetName}_item_${newIndex}_sl_no" class="form-control form-control-sm json-sl-no" placeholder="SL No." min="1">
+                    <input type="date" name="${widgetName}_item_${newIndex}_date" class="form-control form-control-sm json-date">
+                    <input type="number" name="${widgetName}_item_${newIndex}_percentage" class="form-control form-control-sm json-percentage" placeholder="Percentage" min="0" max="100">
+                    <button type="button" class="btn btn-outline-danger btn-sm remove-json-list-item"><i class="fas fa-minus-circle"></i></button>
+                `;
+                itemsContainer.appendChild(newRow);
+
+                // Add event listeners to the new row's inputs
+                newRow.querySelectorAll('input').forEach(input => {
+                    input.addEventListener('change', () => updateHiddenJsonInput(widgetContainer));
+                    input.addEventListener('keyup', () => updateHiddenJsonInput(widgetContainer));
+                });
+                // Add event listener for the new remove button
+                newRow.querySelector('.remove-json-list-item').addEventListener('click', function() {
+                    newRow.remove();
+                    updateHiddenJsonInput(widgetContainer); // Update after removal
+                });
+
+                updateHiddenJsonInput(widgetContainer); // Update after adding
             });
-        });
-    }
+        }
 
-    // Add item functionality
-    if (addButton) {
-        addButton.addEventListener('click', function() {
-            var newItemIndex = itemsContainer.children.length;
-            var newRow = document.createElement('div');
-            newRow.className = 'input-group mb-2 json-list-item-row';
-            newRow.innerHTML = `
-                <input type="number" name="${fieldName}[${newItemIndex}][sl_no]" class="form-control form-control-sm json-sl-no" placeholder="SL No." min="1">
-                <input type="date" name="${fieldName}[${newItemIndex}][date]" class="form-control form-control-sm json-date" type="date">
-                <input type="number" name="${fieldName}[${newItemIndex}][percentage]" class="form-control form-control-sm json-percentage" placeholder="Percentage" min="0" max="100">
-                <button type="button" class="btn btn-outline-danger btn-sm remove-json-list-item">
-                    <i class="fas fa-minus-circle"></i>
-                </button>
-            `;
-            itemsContainer.appendChild(newRow);
-            updateItemIndices(); // Re-index all items after adding
-        });
-    }
-
-    // Remove item functionality (event delegation)
-    itemsContainer.addEventListener('click', function(event) {
-        if (event.target.closest('.remove-json-list-item')) {
-            var rowToRemove = event.target.closest('.json-list-item-row');
-            if (rowToRemove) {
-                // Ensure at least one row remains if it's the only one
-                if (itemsContainer.children.length > 1 || (itemsContainer.children.length === 1 && !{{ widget.attrs.readonly|lower }})) {
-                    rowToRemove.remove();
-                    updateItemIndices(); // Re-index all items after removing
-                } else if (itemsContainer.children.length === 1 && {{ widget.attrs.readonly|lower }}) {
-                    // If it's the only row and readonly, don't remove, just clear
-                    rowToRemove.querySelectorAll('input').forEach(input => input.value = '');
+        // Remove Item button click handler (delegation for existing and future buttons)
+        widgetContainer.addEventListener('click', function(event) {
+            if (event.target.closest('.remove-json-list-item') && !isReadonly) {
+                const row = event.target.closest('.json-list-item-row');
+                if (row) {
+                    row.remove();
+                    updateHiddenJsonInput(widgetContainer); // Update after removal
                 }
             }
+        });
+
+        // Initial update and attach listeners to existing inputs
+        widgetContainer.querySelectorAll('.json-list-item-row input').forEach(input => {
+            input.addEventListener('change', () => updateHiddenJsonInput(widgetContainer));
+            input.addEventListener('keyup', () => updateHiddenJsonInput(widgetContainer));
+        });
+
+        // Initial update when the page loads to ensure hidden input reflects initial values
+        updateHiddenJsonInput(widgetContainer);
+
+        // Apply readonly styles if widget is readonly
+        if (isReadonly) {
+            widgetContainer.querySelectorAll('input').forEach(input => {
+                input.setAttribute('readonly', 'true');
+                input.style.backgroundColor = '#e9ecef';
+                input.style.cursor = 'not-allowed';
+            });
+            if (addButton) {
+                addButton.style.display = 'none';
+            }
+            widgetContainer.querySelectorAll('.remove-json-list-item').forEach(button => {
+                button.style.display = 'none';
+            });
         }
     });
-
-    // Initial check for empty state on load for non-readonly fields
-    // If there are no initial forms and it's not readonly, ensure one empty row exists
-    if (itemsContainer.children.length === 0 && !{{ widget.attrs.readonly|lower }}) {
-        // Simulate a click on the add button to create the first empty row
-        if (addButton) {
-            addButton.click();
-            // Clear the default 0 sl_no if it was added by the default rendering
-            let firstSlNoInput = itemsContainer.querySelector('.json-sl-no');
-            if (firstSlNoInput && firstSlNoInput.value === '0') {
-                firstSlNoInput.value = '';
-            }
-        }
-    }
-
-    // Handle initial state for readonly fields
-    if ({{ widget.attrs.readonly|lower }}) {
-        widgetContainer.querySelectorAll('input').forEach(input => {
-            input.setAttribute('readonly', 'true');
-            input.style.backgroundColor = '#e9ecef';
-            input.style.cursor = 'not-allowed';
-        });
-        if (addButton) {
-            addButton.style.display = 'none';
-        }
-        widgetContainer.querySelectorAll('.remove-json-list-item').forEach(button => {
-            button.style.display = 'none';
-        });
-    }
 });
 </script>
 
@@ -155,13 +199,6 @@ document.addEventListener('DOMContentLoaded', function() {
         flex: 0.7; /* Make percentage input a bit smaller */
     }
     .remove-json-list-item {
-        flex-shrink: 0; /* Don't let button shrink */
-    }
-    .json-list-widget .invalid-feedback {
-        display: block; /* Ensure Django errors are visible */
-        width: 100%;
-        margin-top: 0.25rem;
-        font-size: 0.875em;
-        color: #dc3545;
+        flex-shrink: 0; /* Prevent button from shrinking */
     }
 </style>

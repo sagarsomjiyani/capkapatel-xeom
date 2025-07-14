@@ -38,6 +38,7 @@
                             <p><strong>Lift Quantity:</strong> {{ order.lift_quantity }}</p>
                             <p><strong>Sales Executive:</strong> {{ order.sales_executive.get_full_name|default:order.sales_executive.username }}</p>
                             <p><strong>Supervisor:</strong> {{ order.supervisor.get_full_name|default:"N/A" }}</p>
+                            <p><strong>Erector</strong> {{ order.erector|default:"N/A" }}</p>
                             <p><strong>Status:</strong>
                                 <span class="badge
                                     {% if order.status == 'Completed' %}bg-success
@@ -58,7 +59,7 @@
                             <p><strong>Order Release Date:</strong> {{ order.order_release|date:"M d, Y"|default:"N/A" }}</p>
                             <p><strong>Supervisor Decided Date:</strong> {{ order.supervisor_decided|date:"M d, Y"|default:"N/A" }}</p>
                             <p><strong>BOM Ready Date:</strong> {{ order.bom_ready|date:"M d, Y"|default:"N/A" }}</p>
-                            <p><strong>GAD Send for Sign Date:</strong> {{ order.gad_send_for_sign|date:"M d, Y"|default:"N/A" }}</p>
+                            
                             <p><strong>Kick Off Meeting Date:</strong> {{ order.kick_off_meeting|date:"M d, Y"|default:"N/A" }}</p>
                             <p><strong>Scaffolding Message Date:</strong> {{ order.scaffolding_message|date:"M d, Y"|default:"N/A" }}</p>
                             <p><strong>Scaffolding Delivery Date:</strong> {{ order.scaffolding_delivery|date:"M d, Y"|default:"N/A" }}</p>
@@ -76,6 +77,7 @@
                     <div class="card h-100">
                         <div class="card-header">Compliance & Handover</div>
                         <div class="card-body">
+                            <p><strong>GAD Send for Sign Date:</strong> {{ order.gad_send_for_sign|date:"M d, Y"|default:"N/A" }}</p>
                             <p><strong>GAD Sign Complete Date:</strong> {{ order.gad_sign_complete|date:"M d, Y"|default:"N/A" }}</p>
                             <p><strong>Form A Submitted Date:</strong> {{ order.form_a_submitted|date:"M d, Y"|default:"N/A" }}</p>
                             <p><strong>Form A Permission Received Date:</strong> {{ order.form_a_permission_received|date:"M d, Y"|default:"N/A" }}</p>

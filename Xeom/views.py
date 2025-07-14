@@ -237,7 +237,26 @@ class OrderListView(LoginRequiredMixin, ListView):
     paginate_by = 10
     
     def get_queryset(self):
-        queryset = order.objects.all().select_related('sales_executive', 'supervisor')
+        if self.request.user.groups.filter(name='Admin').exists():
+            queryset = order.objects.all()
+        elif self.request.user.groups.filter(name='Supervisor HOD').exists():
+            queryset = order.objects.all().filter(supervisor_decided__isnull=True).filter(order_release__isnull=False)
+        elif self.request.user.groups.filter(name='Supervisor').exists():
+            queryset = order.objects.all().filter(installation__isnull=True).filter(supervisor=self.request.user).filter(order_release__isnull=False)
+        elif self.request.user.groups.filter(name='Designer').exists():
+            queryset = order.objects.all().filter(reading_received__isnull=True).filter(order_release__isnull=False)
+        elif self.request.user.groups.filter(name='Store manager').exists():
+            queryset = order.objects.all().filter(scaffolding_delivery__isnull=True).filter(order_release__isnull=False)
+        elif self.request.user.groups.filter(name='Purchase manager').exists():
+            queryset = order.objects.all().filter(installation__isnull=True).filter(order_release__isnull=False)
+        elif self.request.user.groups.filter(name='License consultant').exists():
+            queryset = order.objects.all().filter(license_received__isnull=True).filter(order_release__isnull=False)
+        elif self.request.user.groups.filter(name='Sales Person').exists():
+            queryset = order.objects.all().filter(installation__isnull=True).filter(sales_executive=self.request.user).filter(order_release__isnull=False)
+        elif self.request.user.groups.filter(name='Maintenance HOD').exists():
+            queryset = order.objects.all().filter(received_by_maintenance_hod=True).filter(order_release__isnull=False).filter(email_to_maintenance=False)
+        else:
+            queryset = order.objects.all().filter(order_release__isnull=False)
         status = self.request.GET.get('status')
         search = self.request.GET.get('search')
         

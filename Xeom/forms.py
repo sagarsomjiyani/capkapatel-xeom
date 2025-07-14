@@ -1,152 +1,184 @@
 from django import forms
 from django.contrib.auth.models import User, Group
 from .models import order
-import json
+import json, datetime
 from collections import OrderedDict
 from django.core.exceptions import ValidationError
-from django.forms.widgets import MultiWidget, TextInput, NumberInput, DateInput
-from django.forms.fields import MultiValueField, CharField, IntegerField, DateField, DecimalField
+from django.forms.widgets import MultiWidget, TextInput, NumberInput, DateInput, Widget
+from django.forms.fields import MultiValueField, CharField, IntegerField, DateField, DecimalField, Field
 
-# --- Custom Widgets and Fields for JSON List Data ---
+# --- Date field validation for restricting today -3 days ---
 
-class JSONListItemWidget(MultiWidget):
+class ValidatedDateInput(forms.DateInput):
     """
-    A widget to render a single item (sl_no, date, percentage) for the JSON list.
+    A custom DateInput widget that automatically sets min/max attributes for
+    client-side validation to allow dates from today up to 3 days prior,
+    and sets today's date as the default value if the field is empty.
     """
     def __init__(self, attrs=None):
-        widgets = [
-            NumberInput(attrs={'class': 'form-control form-control-sm json-sl-no', 'placeholder': 'SL No.', 'min': '1'}),
-            DateInput(attrs={'class': 'form-control form-control-sm json-date', 'type': 'date'}),
-            NumberInput(attrs={'class': 'form-control form-control-sm json-percentage', 'placeholder': 'Percentage', 'min': '0', 'max': '100'}),
-        ]
-        super().__init__(widgets, attrs)
+        if attrs is None:
+            attrs = {}
 
-    def decompress(self, value):
-        # Decompress a single dictionary item into a list of values for each sub-widget
-        if value:
-            return [value.get('sl_no'), value.get('date'), value.get('percentage')]
-        return [None, None, None]
+        today = datetime.date.today()
+        three_days_ago = today - datetime.timedelta(days=3)
 
-class JSONListWidget(MultiWidget):
+        # Set HTML5 min and max attributes for client-side validation
+        attrs['type'] = 'date' # Ensure it's a date picker
+        attrs['max'] = today.strftime('%Y-%m-%d')
+        attrs['min'] = three_days_ago.strftime('%Y-%m-%d')
+
+        super().__init__(attrs)
+
+    # def get_context(self, name, value, attrs):
+    #     # If the field has no existing value, set the default to today's date
+    #     if value is None or value == '':
+    #         today = datetime.date.today()
+    #         value = today.strftime('%Y-%m-%d')
+    #     return super().get_context(name, value, attrs)
+
+# Custom Widget for JSONField to render a list of JSONListItemWidgets
+class JSONListWidget(forms.widgets.Widget):
     """
-    A widget to render a dynamic list of JSONListItemWidgets.
-    This widget is primarily a container; the dynamic adding/removing of items
-    will be handled by JavaScript in the template.
+    A custom widget for Django's JSONField that allows adding/removing
+    rows of SL No, Date, and Percentage inputs, storing them as a JSON list.
     """
-    template_name = 'widgets/json_list_widget.html' # Custom template for rendering
-
-    def __init__(self, attrs=None):
-        # This widget doesn't need to define sub-widgets directly here
-        # as it will be rendered by a custom template that handles dynamic items.
-        super().__init__([], attrs) # Pass an empty list of widgets
+    template_name = 'widgets/json_list_widget.html'
 
     def get_context(self, name, value, attrs):
         context = super().get_context(name, value, attrs)
-        # Value will be the JSON string from the model.
-        # We need to parse it and prepare it for rendering.
-        try:
-            parsed_value = json.loads(value) if value else []
-        except (json.JSONDecodeError, TypeError):
-            parsed_value = [] # Fallback for invalid JSON or non-string value
+        
+        # Ensure value is a list (even if empty or None).
+        # This handles cases where the DB might store None, or a single dict (user's request).
+        if not isinstance(value, list):
+            if value is None:
+                value = []
+            elif isinstance(value, dict): # If it's a single dict, wrap it in a list
+                value = [value]
+            else: # Attempt to load from JSON string
+                try:
+                    parsed_value = json.loads(value)
+                    if isinstance(parsed_value, list):
+                        value = parsed_value
+                    elif isinstance(parsed_value, dict): # If parsed value is a single dict, wrap it
+                        value = [parsed_value]
+                    else:
+                        value = [] # Fallback for unexpected format
+                except (json.JSONDecodeError, TypeError):
+                    value = []
 
-        # Prepare initial forms for existing data
-        initial_forms = []
-        for i, item in enumerate(parsed_value):
-            # Create a dummy form for each item to leverage Django's widget rendering
-            # This is a bit of a hack, but allows us to use decompress logic
-            item_widget = JSONListItemWidget()
-            item_data = item_widget.decompress(item)
-            # Manually create the HTML for each item using its sub-widgets
-            # This part is tricky to do purely in Python for dynamic lists.
-            # We'll rely more heavily on the template to iterate and render.
-            initial_forms.append({
-                'sl_no': item.get('sl_no', ''),
-                'date': item.get('date', ''),
-                'percentage': item.get('percentage', ''),
-            })
-        context['widget']['initial_forms'] = initial_forms
+        context['widget']['initial_forms'] = value # Pass the list of dictionaries to the template
+        
+        # Add a dedicated boolean flag for readonly status to the context
+        context['widget']['is_readonly'] = attrs.get('data-readonly', 'false') == 'true'
+
+        # Ensure the value for the hidden input is a JSON string, defaulting to '[]' if empty
+        if not value and not context['widget']['is_readonly']:
+            context['widget']['value'] = '[]'
+        else:
+            context['widget']['value'] = json.dumps(value)
+
         return context
 
+    def value_from_datadict(self, data, files, name):
+        """
+        Processes the incoming POST data to reconstruct the JSON list.
+        """
+        items = []
+        # Iterate through submitted data to find all items for this field
+        i = 0
+        while True:
+            sl_no_key = f"{name}_item_{i}_sl_no"
+            date_key = f"{name}_item_{i}_date"
+            percentage_key = f"{name}_item_{i}_percentage"
 
+            # Check if any part of the item exists in the submitted data
+            if sl_no_key in data or date_key in data or percentage_key in data:
+                sl_no = data.get(sl_no_key)
+                date = data.get(date_key)
+                percentage = data.get(percentage_key)
+
+                # Convert to appropriate types, handling potential empty strings
+                try:
+                    sl_no = int(sl_no) if sl_no else None
+                except ValueError:
+                    sl_no = None
+                
+                try:
+                    percentage = float(percentage) if percentage else None
+                except ValueError:
+                    percentage = None
+
+                # Only add item if at least one field has a value
+                if sl_no is not None or date or percentage is not None:
+                    items.append({
+                        'sl_no': sl_no,
+                        'date': date,
+                        'percentage': percentage,
+                    })
+                i += 1
+            else:
+                break # No more items found
+
+        return json.dumps(items) # Return as JSON string
+
+# Custom Form Field for JSONField
 class JSONListField(forms.Field):
     """
-    A custom form field for handling a list of structured JSON objects.
-    It expects data in the format:
-    [
-        {"sl_no": 1, "date": "YYYY-MM-DD", "percentage": 50},
-        {"sl_no": 2, "date": "YYYY-MM-DD", "percentage": 30}
-    ]
+    A custom form field for Django's JSONField that uses JSONListWidget.
+    Handles validation for the list of dictionaries.
     """
     widget = JSONListWidget
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # These are the fields for a single item.
-        # We'll validate each item's structure here.
-        self.item_fields = {
-            'sl_no': IntegerField(required=True, min_value=1),
-            'date': DateField(required=True),
-            'percentage': DecimalField(required=True, min_value=0, max_value=100),
-        }
 
     def to_python(self, value):
         """
-        Converts the incoming data from the widget (which will be a list of lists/dicts
-        from the dynamically added fields) into the Python list of dictionaries.
+        Converts the JSON string from the widget back into a Python list of dicts.
         """
-        if not value:
+        if isinstance(value, list): # Already a list (e.g., from initial data)
+            return value
+        if value is None or value == '' or value == '[]':
             return []
-
-        # Value will be a list of dictionaries, where each dict represents a row
-        # and its keys are 'sl_no', 'date', 'percentage'
-        if not isinstance(value, list):
-            raise ValidationError("Invalid data format. Expected a list of items.")
-
-        cleaned_data = []
-        total_percentage = 0
-
-        for i, item_data in enumerate(value):
-            if not isinstance(item_data, dict):
-                raise ValidationError(f"Item {i+1} is not a valid object.")
-
-            item_sl_no = item_data.get('sl_no')
-            item_date = item_data.get('date')
-            item_percentage = item_data.get('percentage')
-
-            # Validate each sub-field
-            try:
-                sl_no = self.item_fields['sl_no'].clean(item_sl_no)
-                date = self.item_fields['date'].clean(item_date)
-                percentage = self.item_fields['percentage'].clean(item_percentage)
-            except ValidationError as e:
-                # Add specific error to the item
-                raise ValidationError(f"Item {i+1} has an error: {e.message}")
-
-            cleaned_data.append({
-                'sl_no': sl_no,
-                'date': date.strftime('%Y-%m-%d'), # Ensure date is formatted consistently
-                'percentage': float(percentage), # Store as float for JSONField
-            })
-            total_percentage += float(percentage)
-
-        if total_percentage > 100:
-            raise ValidationError(f"Total percentage cannot exceed 100%. Current total: {total_percentage}%.")
-
-        return cleaned_data
+        try:
+            parsed = json.loads(value)
+            if not isinstance(parsed, list):
+                # If it's a single dictionary (due to default={})
+                # and we expect a list, wrap it.
+                if isinstance(parsed, dict):
+                    return [parsed]
+                raise ValidationError("Invalid JSON format for JSONListField: expected a list.")
+            return parsed
+        except json.JSONDecodeError:
+            raise ValidationError("Invalid JSON format for JSONListField.")
 
     def validate(self, value):
         super().validate(value)
-        # Additional validation for the list of items (e.g., uniqueness of sl_no)
-        sl_nos = set()
-        for i, item in enumerate(value):
-            sl_no = item.get('sl_no')
-            if sl_no in sl_nos:
-                raise ValidationError(f"Duplicate SL No. '{sl_no}' found for item {i+1}.")
-            sl_nos.add(sl_no)
-
+        if not isinstance(value, list):
+            raise ValidationError("Expected a list of items.")
+        for item in value:
+            if not isinstance(item, dict):
+                raise ValidationError("Each item in the list must be a dictionary.")
+            # Add more specific validation for 'sl_no', 'date', 'percentage' if needed
+            # For example, checking types or ranges
+            if 'sl_no' in item and item['sl_no'] is not None and not isinstance(item['sl_no'], int):
+                raise ValidationError("SL No. must be an integer.")
+            if 'percentage' in item and item['percentage'] is not None and not isinstance(item['percentage'], (int, float)):
+                raise ValidationError("Percentage must be a number.")
+            if 'date' in item and item['date'] is not None:
+                try:
+                    if item['date'] != "":
+                        datetime.date.fromisoformat(item['date'])
+                except ValueError:
+                    raise ValidationError("Date must be in YYYY-MM-DD format.")
+        total_percentage = 0
+        for item in value:
+            total_percentage = item['percentage'] + total_percentage
+            if total_percentage > 100:
+                raise ValidationError("Total percentage cannot exceed 100% across all items.")
+            
 
 # --- Existing Forms (with updates for JSON fields) ---
-
 class OrderCreateForm(forms.ModelForm):
     """
     Form for creating a new Order.
@@ -188,47 +220,28 @@ class OrderCreateForm(forms.ModelForm):
             if isinstance(field.widget, forms.TextInput) or isinstance(field.widget, forms.NumberInput):
                 field.widget.attrs.update({'class': 'form-control'})
 
-
 class OrderDetailForm(forms.ModelForm):
-    """
-    Django Form for the Order model, with dynamic field visibility,
-    editability, and workflow validation based on the logged-in user's
-    group and the current state of the order workflow.
-    """
-    # Use the custom JSONListField for these fields
+    # Custom fields for JSON data
     po_release = JSONListField(required=False, label="PO Release Stages")
     material_dump = JSONListField(required=False, label="Material Dump Stages")
-
+    installation = JSONListField(required=False, label="Installation Stages")
+    #erector = forms.ChoiceField(choices=[('SOVANJI','SOVANJI'),('PRAVINBHAI','PRAVINBHAI'),('ROSHANBHAI','ROSHANBHAI'),('BHAVESHBHAI','BHAVESHBHAI'),('JATINBHAI','JATINBHAI'),('DIPAKBHAI','DIPAKBHAI'),('KIRANBHAI','KIRANBHAI'),('MUNAVARBHAI','MUNAVARBHAI'),('KAUSHIKBHAI','KAUSHIKBHAI'),('RAJU','RAJU'),('ASHOKBHAI','ASHOKBHAI'),('OM PRAKASH','OM PRAKASH')], widget=forms.Select(attrs={'class': 'form-select'}))
     class Meta:
         model = order
-        # Explicitly list all fields here. This gives us full control.
-        # Even if we want to hide most, defining them here makes them available in self.base_fields.
         basic_fields = [
-            'order_number',
-            'equipment_number',
-            'agreement_number',
-            'site_name',
-            'block',
-            'lift_number',
-            'lift_quantity',
-            'sales_executive',
-            # Other initial fields that are not part of the sequential workflow dates
+            'order_number', 'equipment_number', 'agreement_number', 'site_name',
+            'block', 'lift_number', 'lift_quantity', 'sales_executive'
         ]
-        
         add_fields = [
-            'supervisor', 
-            'order_release', 'supervisor_decided', 'bom_ready',
-            'gad_send_for_sign', 'kick_off_meeting', 'scaffolding_message',
-            'scaffolding_delivery', 'erector_file_ready', 'scaffolding_installation',
-            'reading_receipt', 'installation', 'lift_handover',
-            'gad_sign_complete', 'form_a_submitted', 'form_a_permission_received',
-            'form_b_submitted', 'license_received', 'license_handover',
-            'handover_oc_submitted', 'email_to_maintenance', 'receipt_by_maintenance',
-            # 'po_release', 'material_dump', # These are now defined as custom fields above
-            'status',
+            'order_release', 'supervisor' ,'supervisor_decided', 'bom_ready', 'gad_send_for_sign',
+            'kick_off_meeting', 'scaffolding_message', 'scaffolding_delivery','erector', 'erector_decided',
+            'erector_file_ready', 'scaffolding_installation', 'reading_receipt',
+            'installation', 'lift_handover', 'gad_sign_complete', 'form_a_submitted',
+            'form_a_permission_received', 'form_b_submitted', 'license_received',
+            'license_handover', 'handover_oc_submitted', 'email_to_maintenance',
+            'receipt_by_maintenance', 'status'
         ]
-        fields = basic_fields + add_fields + ['po_release', 'material_dump'] # Add custom fields to the list
-
+        fields = basic_fields + add_fields + ['po_release', 'material_dump']
 
         widgets = {
             'order_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter order number',  'readonly': True}),
@@ -238,47 +251,51 @@ class OrderDetailForm(forms.ModelForm):
             'block': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter block', 'readonly': True}),
             'lift_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter lift number', 'readonly': True}),
             'lift_quantity': forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'readonly': True}),
-            'sales_executive': forms.Select(attrs={'class': 'form-select', 'readonly': True}),
+            'sales_executive': forms.Select(attrs={'class': 'form-select', 'disabled': True}),
             'supervisor': forms.Select(attrs={'class': 'form-select'}),
             'status': forms.Select(attrs={'class': 'form-select','readonly': True}),
 
             # Date fields - all set to type 'date' for HTML5 date picker
-            'order_release': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'supervisor_decided': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'bom_ready': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'gad_send_for_sign': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'kick_off_meeting': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'scaffolding_message': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'scaffolding_delivery': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'erector_file_ready': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'scaffolding_installation': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'reading_receipt': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'installation': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'lift_handover': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'gad_sign_complete': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'form_a_submitted': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'form_a_permission_received': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'form_b_submitted': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'license_received': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'license_handover': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'handover_oc_submitted': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'email_to_maintenance': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'receipt_by_maintenance': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-
-            # Removed custom widgets for po_release and material_dump from here,
-            # as they are now defined as custom fields above.
+            'order_release': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'supervisor_decided': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'bom_ready': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'gad_send_for_sign': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'kick_off_meeting': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'scaffolding_message': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'scaffolding_delivery': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'erector': forms.Select(attrs={'class':'form-select','placeholder':'Select Ecrector'}),
+            'erector_decided': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'erector_file_ready': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'scaffolding_installation': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'reading_receipt': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            #'installation': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'lift_handover': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'gad_sign_complete': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'form_a_submitted': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'form_a_permission_received': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'form_b_submitted': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'license_received': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'license_handover': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'handover_oc_submitted': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'email_to_maintenance': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'receipt_by_maintenance': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            # IMPORTANT: The 'po_release' and 'material_dump' entries must NOT be here
+            # because they are already defined as JSONListField class attributes above.
+            # Example (REMOVE THESE LINES IF THEY EXIST):
+            # 'po_release': JSONListField(required=False, label="PO Release Stages"),
+            # 'material_dump': JSONListField(required=False, label="Material Dump Stages")
         }
 
     # Define group-to-field mappings for activities
     GROUP_ACTIVITY_MAPPING = {
         'Admin': ['order_release', 'email_to_maintenance'],
-        'Supervisor HOD': ['supervisor_decided','supervisor'],
+        'Supervisor HOD': ['supervisor','supervisor_decided'],
         'Supervisor': ['kick_off_meeting', 'scaffolding_message', 'scaffolding_installation',
                        'installation', 'lift_handover', 'gad_sign_complete'],
-        'Designer': ['erector_file_ready', 'reading_receipt', 'bom_ready', 'gad_send_for_sign'],
+        'Designer': ['erector','erector_decided','erector_file_ready', 'reading_receipt', 'bom_ready', 'gad_send_for_sign'],
         'Store manager': ['scaffolding_delivery'],
         'Purchase manager': ['po_release', 'material_dump'], # These will now use the custom field
-        'Licence Consultant': ['form_a_submitted', 'form_a_permission_received', 'form_b_submitted', 'license_received'],
+        'License Consultant': ['form_a_submitted', 'form_a_permission_received', 'form_b_submitted', 'license_received'],
         'Sales person': ['license_handover', 'handover_oc_submitted'],
         'Maintenance HOD': ['receipt_by_maintenance']
     }
@@ -287,7 +304,9 @@ class OrderDetailForm(forms.ModelForm):
     WORKFLOW_DEPENDENCIES = {
         'order_release': [],
         'supervisor_decided': ['order_release'],
-        'erector_file_ready': ['order_release'],
+        'erector':['order_release'],
+        'erector_decided':['order_release'],
+        'erector_file_ready': ['erector_decided'],
         'bom_ready': ['order_release'],
         'gad_send_for_sign': ['order_release'],
         'kick_off_meeting': ['supervisor_decided'],
@@ -324,6 +343,8 @@ class OrderDetailForm(forms.ModelForm):
         'status': 'Status',
         'order_release': 'Order Release',
         'supervisor_decided': 'Supervisor Decided',
+        'erector':'Erector Partner',
+        'erector_decided': 'Erector Decided',
         'erector_file_ready': 'Erector File Ready',
         'bom_ready': 'BOM Ready',
         'gad_send_for_sign': 'GAD Send for Sign',
@@ -351,7 +372,7 @@ class OrderDetailForm(forms.ModelForm):
     BASIC_INFO_FIELDS = [
         'order_number', 'equipment_number', 'agreement_number',
         'site_name', 'block', 'lift_number', 'lift_quantity',
-        'sales_executive',
+        #'sales_executive', 'supervisor', 'status',
     ]
 
     def __init__(self, *args, **kwargs):
@@ -372,8 +393,9 @@ class OrderDetailForm(forms.ModelForm):
                 self.initial['po_release'] = json.dumps(self.instance.po_release)
             if self.instance.material_dump:
                 self.initial['material_dump'] = json.dumps(self.instance.material_dump)
-
-
+            if self.instance.installation:
+                self.initial['installation'] = json.dumps(self.instance.intsllation)
+            
     def _apply_field_permissions_and_workflow_state(self):
         user_groups = self.user.groups.values_list('name', flat=True)
         user_allowed_activity_fields = set()
@@ -391,120 +413,158 @@ class OrderDetailForm(forms.ModelForm):
                 final_field_names_in_order.append(f_name)
 
         # Add activity fields based on permissions
-        # Iterate over all fields defined in Meta, including the custom ones
-        all_meta_fields = list(self._meta.fields) + ['po_release', 'material_dump']
+        all_meta_fields = list(self._meta.fields)
+        
         for f_name in all_meta_fields:
             if f_name in self.BASIC_INFO_FIELDS:
                 continue # Already handled
 
             if f_name in user_allowed_activity_fields:
-                final_field_names_in_order.append(f_name)
+                if f_name not in final_field_names_in_order: # Prevent duplicates
+                    final_field_names_in_order.append(f_name)
+
+        # Add supervisor and status explicitly after basic fields and before other activities if not already added
+        # if 'supervisor' in self.fields and 'supervisor' not in final_field_names_in_order:
+        #     final_field_names_in_order.append('supervisor')
+        # if 'status' in self.fields and 'status' not in final_field_names_in_order:
+        #     final_field_names_in_order.append('status')
 
         # Now, reconstruct self.fields to reflect the desired order and visibility
-        # We preserve the BoundField instances from the original self.fields
         ordered_fields = OrderedDict()
         for field_name in final_field_names_in_order:
-            if field_name in self.fields: # Check if the BoundField exists
+            if field_name in self.fields:
                 ordered_fields[field_name] = self.fields[field_name]
 
-        self.fields = ordered_fields # Replace the form's fields OrderedDict
+        self.fields = ordered_fields
 
         # Finally, apply the editable states to the fields that are now in the form
         for field_name, bound_field in self.fields.items():
             if field_name in self.BASIC_INFO_FIELDS:
-                self._set_field_editable_state(bound_field, True)
+                bound_field.widget.attrs['readonly'] = True
+                bound_field.widget.attrs['style'] = 'background-color: #e9ecef; cursor: not-allowed;'
+                if isinstance(bound_field.widget, forms.Select):
+                    bound_field.widget.attrs['disabled'] = True
+
             elif field_name in user_allowed_activity_fields:
                 field_value = getattr(self.instance, field_name)
-                if field_value:
-                    self._set_field_editable_state(bound_field, True)
-                elif not self._are_prerequisites_met(field_name):
-                    self._set_field_editable_state(bound_field, True)
+                
+                # Special handling for JSONListField: editable if empty AND prerequisites met
+                if field_name in ['po_release', 'material_dump']:
+                    # Field is editable if its current value (list) is empty, AND prerequisites are met
+                    # Note: an empty list [] evaluates to False, so 'not field_value' works here.
+                    is_editable = not field_value and self._are_prerequisites_met(field_name)
+                    self._set_field_editable_state(bound_field, not is_editable) # Set readonly to opposite of is_editable
                 else:
-                    self._set_field_editable_state(bound_field, False)
-
+                    # For other activity fields (like date fields), it's editable if no value exists and prerequisites are met
+                    is_editable = not field_value and self._are_prerequisites_met(field_name)
+                    self._set_field_editable_state(bound_field, not is_editable) # Set readonly to opposite of is_editable
+            else:
+                # Fields not in basic info and not allowed by user groups should be readonly
+                self._set_field_editable_state(bound_field, True)
 
     def _are_prerequisites_met(self, field_name):
-        prerequisites = self.WORKFLOW_DEPENDENCIES.get(field_name)
+        prerequisites = self.WORKFLOW_DEPENDENCIES.get(field_name, [])
+        if not prerequisites:
+            return True # No prerequisites, so met
 
-        if prerequisites is None:
-            return True
-
-        for prereq_field in prerequisites:
-            if not hasattr(self.instance, prereq_field) or not getattr(self.instance, prereq_field):
+        for prereq in prerequisites:
+            # Get the actual value from the model instance
+            prereq_value = getattr(self.instance, prereq, None)
+            
+            # Special handling for JSONListField prerequisites
+            if prereq in ['po_release', 'material_dump']:
+                # If a JSONListField is a prerequisite, it must contain data (i.e., not be an empty list)
+                if not prereq_value or (isinstance(prereq_value, list) and not prereq_value):
+                    return False
+            elif not prereq_value: # For other field types, check if value exists
                 return False
         return True
 
-    def _set_field_editable_state(self, field, is_readonly):
-        # This function now correctly receives a Field object (e.g., JSONListField, DateField)
-        # and applies the readonly attribute to its widget.
-        if hasattr(field.widget, 'attrs'):
-            if is_readonly:
-                field.widget.attrs.update({
-                    'readonly': True,
-                    'class': field.widget.attrs.get('class', '') + ' readonly-field',
-                    'style': 'background-color: #e9ecef; cursor: not-allowed;'
-                })
-            else:
-                field.widget.attrs.pop('readonly', None)
-                field.widget.attrs.pop('disabled', None)
-                current_class = field.widget.attrs.get('class', '')
-                field.widget.attrs['class'] = current_class.replace('readonly-field', '').strip()
-                field.widget.attrs.pop('style', None)
-
-        if isinstance(field.widget, forms.Select):
-            if is_readonly:
-                field.widget.attrs.update({
-                    'readonly': True,
-                    'class': field.widget.attrs.get('class', '') + ' readonly-field',
-                    'style': 'background-color: #e9ecef; cursor: not-allowed;'
-                })
-            else:
-                field.widget.attrs.pop('disabled', None)
-                current_class = field.widget.attrs.get('class', '')
-                field.widget.attrs['class'] = current_class.replace('readonly-field', '').strip()
-                field.widget.attrs.pop('style', None)
-
-    def clean_order_number(self):
-        order_number = self.cleaned_data.get('order_number')
-        if order_number and not self.instance.pk:
-            if order.objects.filter(order_number=order_number).exists():
-                raise forms.ValidationError("This order number already exists. Please choose a unique one.")
-        return order_number
+    def _set_field_editable_state(self, bound_field, make_readonly):
+        if make_readonly:
+            bound_field.widget.attrs['readonly'] = True
+            bound_field.widget.attrs['style'] = 'background-color: #e9ecef; cursor: not-allowed;'
+            # For Select widgets, 'disabled' is used instead of 'readonly'
+            if isinstance(bound_field.widget, forms.Select):
+                bound_field.widget.attrs['disabled'] = True
+            # For JSONListWidget, hide add/remove buttons if readonly
+            if isinstance(bound_field.widget, JSONListWidget):
+                bound_field.widget.attrs['readonly'] = True # Pass readonly to the widget for template logic
+        else:
+            if 'readonly' in bound_field.widget.attrs:
+                del bound_field.widget.attrs['readonly']
+            if 'style' in bound_field.widget.attrs:
+                # Remove style only if it's the specific readonly style
+                if 'background-color: #e9ecef; cursor: not-allowed;' in bound_field.widget.attrs['style']:
+                    bound_field.widget.attrs['style'] = bound_field.widget.attrs['style'].replace('background-color: #e9ecef; cursor: not-allowed;', '').strip()
+            if 'disabled' in bound_field.widget.attrs:
+                del bound_field.widget.attrs['disabled']
+            if isinstance(bound_field.widget, JSONListWidget):
+                bound_field.widget.attrs.pop('readonly', None)
 
     def clean(self):
         cleaned_data = super().clean()
+        
+        user_groups = self.user.groups.values_list('name', flat=True)
+        user_allowed_activity_fields = set()
+        for group_name in user_groups:
+            if group_name in self.GROUP_ACTIVITY_MAPPING:
+                user_allowed_activity_fields.update(self.GROUP_ACTIVITY_MAPPING[group_name])
 
-        if self.user:
-            user_groups = self.user.groups.values_list('name', flat=True)
-            user_allowed_activity_fields = set()
-            for group_name in user_groups:
-                if group_name in self.GROUP_ACTIVITY_MAPPING:
-                    user_allowed_activity_fields.update(self.GROUP_ACTIVITY_MAPPING[group_name])
+        # Validate permissions and workflow dependencies
+        for field_name, value in list(cleaned_data.items()):
+            # Skip fields that are not in the form's visible fields (i.e., not added by _apply_field_permissions_and_workflow_state)
+            if field_name not in self.fields:
+                continue
 
-            for field_name, value in self.cleaned_data.items():
-                if field_name in self.BASIC_INFO_FIELDS:
+            # Get the original value from the instance to check for modifications
+            original_value = getattr(self.instance, field_name, None)
+
+            # Convert original_value for JSONListFields to a comparable format
+            if field_name in ['po_release', 'material_dump']:
+                if original_value is None:
+                    original_value_comparable = []
+                elif isinstance(original_value, str):
+                    try:
+                        original_value_comparable = json.loads(original_value)
+                    except json.JSONDecodeError:
+                        original_value_comparable = []
+                else: # Assume it's already a list or other comparable format
+                    original_value_comparable = original_value
+                
+                # Convert submitted value for JSONListFields to a comparable format
+                if isinstance(value, str):
+                    try:
+                        value_comparable = json.loads(value)
+                    except json.JSONDecodeError:
+                        value_comparable = []
+                else:
+                    value_comparable = value # Assume it's already a list
+            else:
+                original_value_comparable = original_value
+                value_comparable = value
+
+            if field_name not in self.BASIC_INFO_FIELDS and field_name not in user_allowed_activity_fields:
+                # If the field is not a basic info field and user is not allowed to interact
+                # Check if the user tried to change a field they shouldn't
+                if value_comparable != original_value_comparable:
+                    self.add_error(field_name, f"You do not have permission to modify '{self.FIELD_DISPLAY_NAMES.get(field_name, field_name)}'.")
                     continue
 
-                if field_name not in user_allowed_activity_fields:
-                    original_value = getattr(self.instance, field_name, None) if self.instance else None
-                    # For JSONListField, the value will be a list of dicts, so compare directly
-                    if field_name in ['po_release', 'material_dump']:
-                        # Convert original_value from JSON string to Python list for comparison
-                        original_value_parsed = json.loads(original_value) if original_value else []
-                        if value and value != original_value_parsed:
-                            self.add_error(field_name, f"You do not have permission to modify '{self.FIELD_DISPLAY_NAMES.get(field_name, field_name)}'.")
-                            continue
-                    else:
-                        if value and value != original_value:
-                            self.add_error(field_name, f"You do not have permission to modify '{self.FIELD_DISPLAY_NAMES.get(field_name, field_name)}'.")
-                            continue
-
-                if value and (not self.instance or not getattr(self.instance, field_name)):
+            # Workflow dependency validation for fields the user is allowed to fill
+            if field_name in user_allowed_activity_fields:
+                # If the field is being set/updated and was previously empty or not existing
+                if value and (original_value_comparable is None or original_value_comparable == []): # Check for both None and empty list for JSONListField
                     if not self._are_prerequisites_met(field_name):
                         prerequisites = self.WORKFLOW_DEPENDENCIES.get(field_name, [])
                         missing_prereqs_display_names = []
                         for prereq in prerequisites:
-                            if not hasattr(self.instance, prereq) or not getattr(self.instance, prereq):
+                            # Check if the prerequisite field exists and has a value
+                            prereq_value = getattr(self.instance, prereq, None)
+                            if prereq in ['po_release', 'material_dump']:
+                                if not prereq_value or (isinstance(prereq_value, list) and not prereq_value):
+                                    missing_prereqs_display_names.append(self.FIELD_DISPLAY_NAMES.get(prereq, prereq))
+                            elif not prereq_value:
                                 missing_prereqs_display_names.append(self.FIELD_DISPLAY_NAMES.get(prereq, prereq))
 
                         if missing_prereqs_display_names:
@@ -514,7 +574,6 @@ class OrderDetailForm(forms.ModelForm):
                                 f"{', '.join(missing_prereqs_display_names)}."
                             )
                             self.add_error(field_name, error_message)
-
         return cleaned_data
 
     def get_field_display_name(self, field_name):
