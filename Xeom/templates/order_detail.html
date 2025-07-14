@@ -66,7 +66,6 @@
                             <p><strong>Erector File Ready Date:</strong> {{ order.erector_file_ready|date:"M d, Y"|default:"N/A" }}</p>
                             <p><strong>Scaffolding Installation Date:</strong> {{ order.scaffolding_installation|date:"M d, Y"|default:"N/A" }}</p>
                             <p><strong>Reading Receipt Date:</strong> {{ order.reading_receipt|date:"M d, Y"|default:"N/A" }}</p>
-                            <p><strong>Installation Date:</strong> {{ order.installation|date:"M d, Y"|default:"N/A" }}</p>
                             <p><strong>Lift Handover Date:</strong> {{ order.lift_handover|date:"M d, Y"|default:"N/A" }}</p>
                         </div>
                     </div>
@@ -94,31 +93,58 @@
                 <!-- PO Release and Material Dump (JSON Fields) -->
                 <div class="col-12">
                     <div class="card shadow-sm">
-                        <div class="card-header">PO Release & Material Dump Details</div>
+                        <div class="card-header">PO Release, Material Dump & Installation Details</div>
                         <div class="card-body">
                             <div class="row g-4">
-                                <div class="col-md-6">
+                                <div class="col-md-4">
                                     <h3 class="h5 mb-3 text-gray-700">PO Release</h3>
                                     {% if order.po_release %}
                                         <ul class="list-unstyled">
-                                            {% for key, value in order.po_release.items %}
-                                                <li><strong>{{ key }}:</strong> {{ value }}</li>
+                                            {% for item in order.po_release %}
+                                                <li>
+                                                    <strong>SL No:</strong> {{ item.sl_no|default:"N/A" }}<br>
+                                                    <strong>Date:</strong> {{ item.date|default:"N/A" }}<br>
+                                                    <strong>Percentage:</strong> {{ item.percentage|default:"N/A" }}{% if item.percentage is not None %}%{% endif %}
+                                                </li>
+                                                {% if not forloop.last %}<hr>{% endif %}
                                             {% endfor %}
                                         </ul>
                                     {% else %}
                                         <p class="text-muted">No PO release details available.</p>
                                     {% endif %}
                                 </div>
-                                <div class="col-md-6">
+                                <div class="col-md-4">
                                     <h3 class="h5 mb-3 text-gray-700">Material Dump</h3>
                                     {% if order.material_dump %}
                                         <ul class="list-unstyled">
-                                            {% for key, value in order.material_dump.items %}
-                                                <li><strong>{{ key }}:</strong> {{ value }}</li>
+                                            {% for item in order.material_dump %}
+                                                <li>
+                                                    <strong>SL No:</strong> {{ item.sl_no|default:"N/A" }}<br>
+                                                    <strong>Date:</strong> {{ item.date|default:"N/A" }}<br>
+                                                    <strong>Percentage:</strong> {{ item.percentage|default:"N/A" }}{% if item.percentage is not None %}%{% endif %}
+                                                </li>
+                                                {% if not forloop.last %}<hr>{% endif %}
                                             {% endfor %}
                                         </ul>
                                     {% else %}
                                         <p class="text-muted">No material dump details available.</p>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-4">
+                                    <h3 class="h5 mb-3 text-gray-700">Installation</h3>
+                                    {% if order.installation %}
+                                        <ul class="list-unstyled">
+                                            {% for item in order.installation %}
+                                                <li>
+                                                    <strong>SL No:</strong> {{ item.sl_no|default:"N/A" }}<br>
+                                                    <strong>Date:</strong> {{ item.date|default:"N/A" }}<br>
+                                                    <strong>Percentage:</strong> {{ item.percentage|default:"N/A" }}{% if item.percentage is not None %}%{% endif %}
+                                                </li>
+                                                {% if not forloop.last %}<hr>{% endif %}
+                                            {% endfor %}
+                                        </ul>
+                                    {% else %}
+                                        <p class="text-muted">No Installation details available.</p>
                                     {% endif %}
                                 </div>
                             </div>

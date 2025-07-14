@@ -244,7 +244,7 @@ class OrderListView(LoginRequiredMixin, ListView):
         elif self.request.user.groups.filter(name='Supervisor').exists():
             queryset = order.objects.all().filter(installation__isnull=True).filter(supervisor=self.request.user).filter(order_release__isnull=False)
         elif self.request.user.groups.filter(name='Designer').exists():
-            queryset = order.objects.all().filter(reading_received__isnull=True).filter(order_release__isnull=False)
+            queryset = order.objects.all().filter(order_release__isnull=False)
         elif self.request.user.groups.filter(name='Store manager').exists():
             queryset = order.objects.all().filter(scaffolding_delivery__isnull=True).filter(order_release__isnull=False)
         elif self.request.user.groups.filter(name='Purchase manager').exists():

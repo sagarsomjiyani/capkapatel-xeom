@@ -241,7 +241,7 @@ class OrderDetailForm(forms.ModelForm):
             'license_handover', 'handover_oc_submitted', 'email_to_maintenance',
             'receipt_by_maintenance', 'status'
         ]
-        fields = basic_fields + add_fields + ['po_release', 'material_dump']
+        fields = basic_fields + add_fields + ['po_release', 'material_dump','installation']
 
         widgets = {
             'order_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter order number',  'readonly': True}),
@@ -394,7 +394,7 @@ class OrderDetailForm(forms.ModelForm):
             if self.instance.material_dump:
                 self.initial['material_dump'] = json.dumps(self.instance.material_dump)
             if self.instance.installation:
-                self.initial['installation'] = json.dumps(self.instance.intsllation)
+                self.initial['installation'] = json.dumps(self.instance.installation)
             
     def _apply_field_permissions_and_workflow_state(self):
         user_groups = self.user.groups.values_list('name', flat=True)
@@ -449,7 +449,7 @@ class OrderDetailForm(forms.ModelForm):
                 field_value = getattr(self.instance, field_name)
                 
                 # Special handling for JSONListField: editable if empty AND prerequisites met
-                if field_name in ['po_release', 'material_dump']:
+                if field_name in ['po_release', 'material_dump','installation']:
                     # Field is editable if its current value (list) is empty, AND prerequisites are met
                     # Note: an empty list [] evaluates to False, so 'not field_value' works here.
                     is_editable = not field_value and self._are_prerequisites_met(field_name)
