@@ -96,7 +96,17 @@
         border-radius: 8px;
         padding: 1rem;
         margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
     }
+    .alert-custom .icon {
+        margin-right: 10px;
+        font-size: 1.2rem;
+    }
+    .alert-custom.alert-success { border-color: #28a745; background-color: #d4edda; color: #155724; }
+    .alert-custom.alert-warning { border-color: #ffc107; background-color: #fff3cd; color: #856404; }
+    .alert-custom.alert-danger { border-color: #dc3545; background-color: #f8d7da; color: #721c24; }
+
 
     .page-title {
         font-weight: 700;
@@ -132,6 +142,56 @@
         transform-origin: 40px 40px;
         transition: stroke-dashoffset 0.5s ease;
     }
+
+    /* Worklist Specific Styles */
+    .worklist-card {
+        background: white;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        margin-bottom: 2rem;
+    }
+
+    .worklist-item {
+        padding: 1rem;
+        border-bottom: 1px solid #eee;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: background-color 0.3s ease;
+    }
+
+    .worklist-item:hover {
+        background-color: #f8f9fa;
+    }
+
+    .worklist-item:last-child {
+        border-bottom: none;
+    }
+
+    .worklist-item .order-info {
+        flex-grow: 1;
+    }
+
+    .worklist-item .action-info {
+        text-align: right;
+    }
+
+    .days-pending-badge {
+        display: inline-block;
+        padding: 0.3em 0.6em;
+        font-size: 0.75em;
+        font-weight: 700;
+        line-height: 1;
+        text-align: center;
+        white-space: nowrap;
+        vertical-align: baseline;
+        border-radius: 0.25rem;
+        margin-left: 0.5rem;
+    }
+    .days-pending-badge.green { background-color: #28a745; color: white; } /* Less than 7 days */
+    .days-pending-badge.orange { background-color: #ffc107; color: #343a40; } /* 7-30 days */
+    .days-pending-badge.red { background-color: #dc3545; color: white; } /* More than 30 days */
 </style>
 {% endblock extra_css %}
 
@@ -142,9 +202,11 @@
     </h1>
     <div class="d-flex align-items-center">
         <span class="me-3">Welcome, {{ user.get_full_name|default:user.username }}</span>
+        {% if 'Admin' in user_groups or 'Sales Person' in user_groups %}
         <a href="{% url 'order_create' %}" class="btn btn-primary">
             <i class="fas fa-plus"></i> New Order
         </a>
+        {% endif %}
     </div>
 </div>
 
@@ -153,8 +215,8 @@
 <div class="row mb-4">
     <div class="col-12">
         {% for alert in alerts %}
-        <div class="alert alert-{{ alert.type }} alert-custom border-{{ alert.type }}">
-            <i class="fas fa-{% if alert.type == 'success' %}check-circle{% elif alert.type == 'warning' %}exclamation-triangle{% elif alert.type == 'danger' %}times-circle{% else %}info-circle{% endif %} me-2"></i>
+        <div class="alert alert-{{ alert.type }} alert-custom">
+            <i class="icon fas fa-{% if alert.type == 'success' %}check-circle{% elif alert.type == 'warning' %}exclamation-triangle{% elif alert.type == 'danger' %}times-circle{% else %}info-circle{% endif %}"></i>
             {{ alert.message }}
         </div>
         {% endfor %}
@@ -162,7 +224,69 @@
 </div>
 {% endif %} -->
 
-<!-- Key Metrics -->
+<!-- Worklist Section (for all users) -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="worklist-card">
+            <h5 class="mb-3"><i class="fas fa-clipboard-list me-2"></i>My Worklist</h5>
+            {% if worklist_orders %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Order Number</th>
+                            <th>Site Name</th>
+                            <th>Equipment No.</th>
+                            <th>Next Action</th>
+                            <th>Days Pending</th>
+                            <th>Last Completed Date</th>
+                            <th>Sales Executive</th>
+                            <th>Supervisor</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in worklist_orders %}
+                        <tr>
+                            <td><strong>{{ item.order.order_number }}</strong></td>
+                            <td>{{ item.order.site_name }}</td>
+                            <td>{{ item.order.equipment_number }}</td>
+                            <td>
+                                {{ item.next_action_display }}
+                            </td>
+                            <td>
+                                {% if item.days_pending is not None %}
+                                    <span class="days-pending-badge {% if item.days_pending <= 7 %}green{% elif item.days_pending <= 30 %}orange{% else %}red{% endif %}">
+                                        {{ item.days_pending }} days
+                                    </span>
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </td>
+                            <td>{{ item.last_completed_date|date:"M d, Y" }}</td>
+                            <td>{{ item.order.sales_executive.get_full_name|default:item.order.sales_executive.username }}</td>
+                            <td>{{ item.order.supervisor.get_full_name|default:item.order.supervisor|default:"N/A" }}</td>
+                            <td>
+                                <a href="{{ item.order_detail_url }}" class="btn btn-sm btn-info">
+                                    <i class="fas fa-eye"></i> View
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info text-center" role="alert">
+                <i class="fas fa-info-circle me-2"></i> No pending actions in your worklist. Great job!
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if is_admin %}
+<!-- Key Metrics (Admin Only) -->
 <div class="row mb-4">
     <div class="col-md-2">
         <div class="metric-card primary">
@@ -202,7 +326,7 @@
     </div>
 </div>
 
-<!-- Charts Row -->
+<!-- Charts Row (Admin Only) -->
 <div class="row mb-4">
     <div class="col-md-8">
         <div class="chart-container">
@@ -218,7 +342,7 @@
     </div>
 </div>
 
-<!-- Phase Analysis -->
+<!-- Phase Analysis (Admin Only) -->
 <div class="row mb-4">
     <div class="col-md-8">
         <div class="chart-container">
@@ -264,7 +388,7 @@
     </div>
 </div>
 
-<!-- Recent Activity -->
+<!-- Recent Activity (Admin Only) -->
 <div class="row">
     <div class="col-md-8">
         <div class="recent-activity">
@@ -311,12 +435,15 @@
         </div>
     </div>
 </div>
+{% endif %}
+
 {% endblock content %}
 
 {% block extra_js %}
 <!-- Chart.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
 <script>
+    {% if is_admin %}
     // Monthly Chart
     const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
     const monthlyData = {{ monthly_data|safe }};
@@ -372,6 +499,7 @@
             }
         }
     });
+    {% endif %}
 
     // Auto-refresh every 5 minutes
     setTimeout(function() {

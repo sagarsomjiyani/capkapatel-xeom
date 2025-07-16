@@ -21,6 +21,10 @@ from django.views.decorators.debug import sensitive_post_parameters
 from django.utils.decorators import method_decorator
 from django.contrib.auth.forms import AuthenticationForm
 
+
+##################################################################################################################################
+##################################################################################################################################
+
 @method_decorator([sensitive_post_parameters(),csrf_protect, never_cache], name='dispatch')
 class LoginView(View):
     template_name = 'login.html'
@@ -78,7 +82,7 @@ class LogoutView(View):
 ##################################################################################################################################
 
 # Class processing the landing page for the admin for updates on the task pending 
-class DashboardView(LoginRequiredMixin, TemplateView):
+class DashboardView1(LoginRequiredMixin, TemplateView):
     template_name = 'dashboard.html'
     
     def get_context_data(self, **kwargs):
@@ -239,24 +243,25 @@ class OrderListView(LoginRequiredMixin, ListView):
     def get_queryset(self):
         if self.request.user.groups.filter(name='Admin').exists():
             queryset = order.objects.all()
-        elif self.request.user.groups.filter(name='Supervisor HOD').exists():
-            queryset = order.objects.all().filter(supervisor_decided__isnull=True).filter(order_release__isnull=False)
-        elif self.request.user.groups.filter(name='Supervisor').exists():
-            queryset = order.objects.all().filter(installation__isnull=True).filter(supervisor=self.request.user).filter(order_release__isnull=False)
-        elif self.request.user.groups.filter(name='Designer').exists():
-            queryset = order.objects.all().filter(order_release__isnull=False)
-        elif self.request.user.groups.filter(name='Store manager').exists():
-            queryset = order.objects.all().filter(scaffolding_delivery__isnull=True).filter(order_release__isnull=False)
-        elif self.request.user.groups.filter(name='Purchase manager').exists():
-            queryset = order.objects.all().filter(installation__isnull=True).filter(order_release__isnull=False)
-        elif self.request.user.groups.filter(name='License consultant').exists():
-            queryset = order.objects.all().filter(license_received__isnull=True).filter(order_release__isnull=False)
-        elif self.request.user.groups.filter(name='Sales Person').exists():
-            queryset = order.objects.all().filter(installation__isnull=True).filter(sales_executive=self.request.user).filter(order_release__isnull=False)
-        elif self.request.user.groups.filter(name='Maintenance HOD').exists():
-            queryset = order.objects.all().filter(received_by_maintenance_hod=True).filter(order_release__isnull=False).filter(email_to_maintenance=False)
+        # elif self.request.user.groups.filter(name='Supervisor HOD').exists():
+        #     queryset = order.objects.all().filter(supervisor_decided__isnull=True).filter(order_release__isnull=False)
+        # elif self.request.user.groups.filter(name='Supervisor').exists():
+        #     queryset = order.objects.all().filter(installation__isnull=True).filter(supervisor=self.request.user).filter(order_release__isnull=False)
+        # elif self.request.user.groups.filter(name='Designer').exists():
+        #     queryset = order.objects.all().filter(order_release__isnull=False)
+        # elif self.request.user.groups.filter(name='Store manager').exists():
+        #     queryset = order.objects.all().filter(scaffolding_delivery__isnull=True).filter(order_release__isnull=False)
+        # elif self.request.user.groups.filter(name='Purchase manager').exists():
+        #     queryset = order.objects.all().filter(installation__isnull=True).filter(order_release__isnull=False)
+        # elif self.request.user.groups.filter(name='License consultant').exists():
+        #     queryset = order.objects.all().filter(license_received__isnull=True).filter(order_release__isnull=False)
+        # elif self.request.user.groups.filter(name='Sales Person').exists():
+        #     queryset = order.objects.all().filter(installation__isnull=True).filter(sales_executive=self.request.user).filter(order_release__isnull=False)
+        # elif self.request.user.groups.filter(name='Maintenance HOD').exists():
+        #     queryset = order.objects.all().filter(received_by_maintenance_hod=True).filter(order_release__isnull=False).filter(email_to_maintenance=False)
         else:
             queryset = order.objects.all().filter(order_release__isnull=False)
+        
         status = self.request.GET.get('status')
         search = self.request.GET.get('search')
         
@@ -273,6 +278,9 @@ class OrderListView(LoginRequiredMixin, ListView):
         
         return queryset.order_by('-order_release')
 
+##################################################################################################################################
+##################################################################################################################################
+
 class OrderDetailView(LoginRequiredMixin, DetailView):
     model = order
     template_name = 'order_detail.html'
@@ -281,6 +289,9 @@ class OrderDetailView(LoginRequiredMixin, DetailView):
     
     def get_object(self):
         return get_object_or_404(order, order_number=self.kwargs['order_number'])
+
+##################################################################################################################################
+##################################################################################################################################
 
 class OrderCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
     model = order
@@ -298,6 +309,9 @@ class OrderCreateView(LoginRequiredMixin, PermissionRequiredMixin, CreateView):
         context['title'] = 'Create Order'
         context['button_text'] = 'Create Order'
         return context
+
+##################################################################################################################################
+##################################################################################################################################
 
 class OrderUpdateView(LoginRequiredMixin, UpdateView):
     model = order
@@ -326,6 +340,9 @@ class OrderUpdateView(LoginRequiredMixin, UpdateView):
         context['button_text'] = 'Update Order'
         return context
 
+##################################################################################################################################
+##################################################################################################################################
+
 class OrderDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
     model = order
     template_name = 'order_confirm_delete.html'
@@ -340,6 +357,10 @@ class OrderDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
         messages.success(self.request, 'Order deleted successfully!')
         return super().delete(request, *args, **kwargs)
 
+##################################################################################################################################
+##################################################################################################################################
+##################################################################################################################################
+##################################################################################################################################
 
 # API Views for AJAX
 def get_supervisors(request):
@@ -354,4 +375,337 @@ def get_sales_executives(request):
     data = [{'id': u.id, 'name': u.get_full_name() or u.username} for u in executives]
     return JsonResponse({'executives': data})
 
+##################################################################################################################################
+##################################################################################################################################
+##################################################################################################################################
+##################################################################################################################################
 
+class DashboardView(LoginRequiredMixin, TemplateView):
+    template_name = 'dashboard.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Get current date
+        today = timezone.now().date()
+        
+        # Determine user's groups for role-based dashboard
+        user_groups = [group.name for group in self.request.user.groups.all()]
+        context['user_groups'] = user_groups
+        context['is_admin'] = 'Admin' in user_groups
+
+        # --- Worklist Logic ---
+        worklist_orders = []
+        # Get all in-progress orders that the user might need to act on
+        # Use select_related to optimize queries for related Sales Executive and Supervisor
+        in_progress_orders_queryset = order.objects.filter(status='In Progress').select_related('sales_executive', 'supervisor')
+
+        # Get workflow mappings from OrderDetailForm
+        group_activity_mapping = OrderDetailForm.GROUP_ACTIVITY_MAPPING
+        workflow_dependencies = OrderDetailForm.WORKFLOW_DEPENDENCIES
+        field_display_names = OrderDetailForm.FIELD_DISPLAY_NAMES
+        workflow_order = OrderDetailForm.Meta.add_fields # The defined sequence of activities
+
+        # Determine fields the current user is responsible for based on their groups
+        user_allowed_activity_fields = set()
+        for group_name in user_groups:
+            user_allowed_activity_fields.update(group_activity_mapping.get(group_name, []))
+
+        for order_obj in in_progress_orders_queryset:
+            # Initialize last_completed_activity_date with order_release date
+            # If order_release is null, this order is not yet properly initiated for workflow tracking
+            # or it's a very new order not yet ready for the first step. Skip for worklist.
+            last_completed_activity_date = order_obj.order_release 
+            if not last_completed_activity_date:
+                continue 
+
+            next_action_for_order = None
+            next_action_display = None
+            days_pending = None
+
+            # Iterate through the defined workflow order to find the next pending activity
+            for current_activity_field in workflow_order:
+                current_field_value = getattr(order_obj, current_activity_field)
+                is_current_field_completed = False
+
+                # Check if the current activity field is completed
+                if current_activity_field in ['po_release', 'material_dump', 'installation']:
+                    # For JSON fields, consider it completed if it's a non-empty list
+                    if current_field_value and isinstance(current_field_value, list) and len(current_field_value) > 0:
+                        is_current_field_completed = True
+                        # Update last_completed_activity_date with the latest date within the JSON list
+                        json_dates = []
+                        for item in current_field_value:
+                            if item.get('date'):
+                                try:
+                                    json_dates.append(datetime.strptime(item['date'], '%Y-%m-%d').date())
+                                except ValueError:
+                                    # Handle cases where date format might be incorrect in JSON
+                                    pass
+                        if json_dates:
+                            last_completed_activity_date = max(json_dates)
+                else: # For DateFields
+                    if current_field_value:
+                        is_current_field_completed = True
+                        last_completed_activity_date = current_field_value # Update with the actual date
+
+                if not is_current_field_completed: # This activity is pending
+                    prerequisites_met = True
+                    prereq_fields = workflow_dependencies.get(current_activity_field, [])
+
+                    # Check if all prerequisites for this pending activity are met
+                    for prereq_field in prereq_fields:
+                        prereq_value = getattr(order_obj, prereq_field)
+                        is_prereq_completed = False
+
+                        if prereq_field in ['po_release', 'material_dump', 'installation']:
+                            # Prerequisite is a JSON field, check if it's a non-empty list
+                            if prereq_value and isinstance(prereq_value, list) and len(prereq_value) > 0:
+                                is_prereq_completed = True
+                        else: # Prerequisite is a DateField
+                            if prereq_value:
+                                is_prereq_completed = True
+                        
+                        if not is_prereq_completed:
+                            prerequisites_met = False
+                            break # A prerequisite is not met, so this activity is not yet actionable
+
+                    if prerequisites_met:
+                        # If prerequisites are met, this is the next actionable step.
+                        # Now, check if this step is relevant to the current user's role.
+                        if current_activity_field in user_allowed_activity_fields:
+                            # --- Role-specific logic for assigning tasks ---
+                            # Supervisor HOD assigns 'supervisor' and sets 'supervisor_decided'
+                            if current_activity_field == 'supervisor' and 'Supervisor HOD' in user_groups and not order_obj.supervisor:
+                                next_action_for_order = current_activity_field
+                                next_action_display = field_display_names.get(current_activity_field, current_activity_field)
+                                if last_completed_activity_date:
+                                    days_pending = (today - last_completed_activity_date).days
+                                break # Found the next action for this user for this order
+                            
+                            # 'supervisor_decided' is also for Supervisor HOD, if not set
+                            if current_activity_field == 'supervisor_decided' and 'Supervisor HOD' in user_groups and not order_obj.supervisor_decided:
+                                # This action is only relevant if a supervisor has been assigned
+                                if order_obj.supervisor:
+                                    next_action_for_order = current_activity_field
+                                    next_action_display = field_display_names.get(current_activity_field, current_activity_field)
+                                    if last_completed_activity_date:
+                                        days_pending = (today - last_completed_activity_date).days
+                                    break # Found the next action for this user for this order
+                                else:
+                                    continue # Supervisor not yet assigned, so supervisor_decided cannot be done
+
+                            # Regular Supervisor's tasks (if order is assigned to them)
+                            if 'Supervisor' in user_groups and order_obj.supervisor == self.request.user:
+                                if current_activity_field in ['kick_off_meeting', 'scaffolding_message', 'scaffolding_installation',
+                                                              'installation', 'lift_handover', 'gad_sign_complete']:
+                                    next_action_for_order = current_activity_field
+                                    next_action_display = field_display_names.get(current_activity_field, current_activity_field)
+                                    if last_completed_activity_date:
+                                        days_pending = (today - last_completed_activity_date).days
+                                    break # Found the next action for this user for this order
+
+                            # Sales Person's tasks (if order is assigned to them)
+                            if 'Sales Person' in user_groups and order_obj.sales_executive == self.request.user:
+                                if current_activity_field in ['license_handover', 'handover_oc_submitted']:
+                                    next_action_for_order = current_activity_field
+                                    next_action_display = field_display_names.get(current_activity_field, current_activity_field)
+                                    if last_completed_activity_date:
+                                        days_pending = (today - last_completed_activity_date).days
+                                    break # Found the next action for this user for this order
+                            
+                            # Maintenance HOD's tasks
+                            if 'Maintenance HOD' in user_groups and current_activity_field == 'receipt_by_maintenance':
+                                next_action_for_order = current_activity_field
+                                next_action_display = field_display_names.get(current_activity_field, current_activity_field)
+                                if last_completed_activity_date:
+                                    days_pending = (today - last_completed_activity_date).days
+                                break # Found the next action for this user for this order
+
+                            # Designer's tasks
+                            if 'Designer' in user_groups and current_activity_field in ['erector','erector_decided','erector_file_ready', 'reading_receipt', 'bom_ready', 'gad_send_for_sign']:
+                                next_action_for_order = current_activity_field
+                                next_action_display = field_display_names.get(current_activity_field, current_activity_field)
+                                if last_completed_activity_date:
+                                    days_pending = (today - last_completed_activity_date).days
+                                break # Found the next action for this user for this order
+
+                            # Store Manager's tasks
+                            if 'Store manager' in user_groups and current_activity_field == 'scaffolding_delivery':
+                                next_action_for_order = current_activity_field
+                                next_action_display = field_display_names.get(current_activity_field, current_activity_field)
+                                if last_completed_activity_date:
+                                    days_pending = (today - last_completed_activity_date).days
+                                break # Found the next action for this user for this order
+
+                            # Purchase Manager's tasks
+                            if 'Purchase manager' in user_groups and current_activity_field in ['po_release', 'material_dump']:
+                                next_action_for_order = current_activity_field
+                                next_action_display = field_display_names.get(current_activity_field, current_activity_field)
+                                if last_completed_activity_date:
+                                    days_pending = (today - last_completed_activity_date).days
+                                break # Found the next action for this user for this order
+                            
+                            # License Consultant's tasks
+                            if 'License Consultant' in user_groups and current_activity_field in ['form_a_submitted', 'form_a_permission_received', 'form_b_submitted', 'license_received']:
+                                next_action_for_order = current_activity_field
+                                next_action_display = field_display_names.get(current_activity_field, current_activity_field)
+                                if last_completed_activity_date:
+                                    days_pending = (today - last_completed_activity_date).days
+                                break # Found the next action for this user for this order
+
+                            # Admin's specific tasks (if any, e.g., email to maintenance)
+                            if 'Admin' in user_groups and current_activity_field == 'email_to_maintenance':
+                                next_action_for_order = current_activity_field
+                                next_action_display = field_display_names.get(current_activity_field, current_activity_field)
+                                if last_completed_activity_date:
+                                    days_pending = (today - last_completed_activity_date).days
+                                break # Found the next action for this user for this order
+                    
+                    if next_action_for_order: # If an action was found for this order (even if not for the current user)
+                        break # Stop checking further activities for this order, as we found the next pending one
+
+            if next_action_for_order:
+                worklist_orders.append({
+                    'order': order_obj,
+                    'next_action_field': next_action_for_order,
+                    'next_action_display': next_action_display,
+                    'days_pending': days_pending,
+                    'last_completed_date': last_completed_activity_date,
+                    'order_detail_url': reverse('order_detail', kwargs={'order_number': order_obj.order_number})
+                })
+        
+        context['worklist_orders'] = worklist_orders
+        
+        # --- Existing Dashboard Metrics (for Admin and general overview) ---
+        # These metrics are primarily for the Admin dashboard, but can be conditionally displayed
+        last_30_days = today - timedelta(days=30)
+        last_7_days = today - timedelta(days=7)
+        
+        total_orders = order.objects.count()
+        completed_orders = order.objects.filter(status='Completed').count()
+        in_progress_orders = order.objects.filter(status='In Progress').count()
+        
+        recent_orders = order.objects.filter(
+            order_release__gte=last_30_days
+        ).count()
+        
+        status_data = order.objects.values('status').annotate(count=Count('status'))
+        
+        monthly_data = []
+        for i in range(6):
+            month_start = today.replace(day=1) - timedelta(days=i*30)
+            month_end = (month_start + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+            
+            orders_count = order.objects.filter(
+                order_release__gte=month_start,
+                order_release__lte=month_end
+            ).count()
+            
+            monthly_data.append({
+                'month': month_start.strftime('%b %Y'),
+                'orders': orders_count
+            })
+        
+        monthly_data.reverse()
+        
+        phase_analysis = {
+            'bom_ready': order.objects.filter(bom_ready__isnull=False).count(),
+            'kick_off_meeting': order.objects.filter(kick_off_meeting__isnull=False).count(),
+            'scaffolding_installation': order.objects.filter(scaffolding_installation__isnull=False).count(),
+            'installation': order.objects.filter(installation__isnull=False).count(),
+            'lift_handover': order.objects.filter(lift_handover__isnull=False).count(),
+            'license_received': order.objects.filter(license_received__isnull=False).count(),
+        }
+        
+        top_sites = order.objects.values('site_name').annotate(
+            order_count=Count('order_number')
+        ).order_by('-order_count')[:5]
+        
+        recent_activity = order.objects.select_related(
+            'sales_executive', 'supervisor'
+        ).order_by('-order_release')[:10]
+        
+        overdue_threshold = today - timedelta(days=90)
+        overdue_orders = order.objects.filter(
+            order_release__lt=overdue_threshold,
+            installation__isnull=True, # Assuming installation is a key milestone for "overdue"
+            status='In Progress'
+        ).count()
+        
+        completion_rate = (completed_orders / total_orders * 100) if total_orders > 0 else 0
+        
+        completed_with_dates = order.objects.filter(
+            status='Completed',
+            order_release__isnull=False,
+            receipt_by_maintenance__isnull=False
+        )
+        
+        avg_completion_days = 0
+        if completed_with_dates.exists():
+            total_days = sum([
+                (o.receipt_by_maintenance - o.order_release).days 
+                for o in completed_with_dates
+            ])
+            avg_completion_days = total_days / completed_with_dates.count()
+        
+        supervisor_performance = User.objects.filter(
+            supervisor__isnull=False
+        ).annotate(
+            total_orders=Count('supervisor'),
+            completed_orders=Count('supervisor', filter=Q(supervisor__status='Completed'))
+        ).order_by('-total_orders')[:5]
+
+        for sp in supervisor_performance:
+            sp.completion_percentage = (sp.completed_orders / sp.total_orders * 100) if sp.total_orders > 0 else 0
+        
+        alerts = []
+        
+        no_supervisor_count = order.objects.filter(
+            supervisor__isnull=True,
+            status='In Progress'
+        ).count()
+        
+        if no_supervisor_count > 0:
+            alerts.append({
+                'type': 'warning',
+                'message': f'{no_supervisor_count} orders without assigned supervisor'
+            })
+        
+        # Check for overdue orders
+        if overdue_orders > 0:
+            alerts.append({
+                'type': 'danger',
+                'message': f'{overdue_orders} orders are overdue (>90 days without installation)'
+            })
+        
+        # Check for recent completions
+        recent_completions = order.objects.filter(
+            receipt_by_maintenance__gte=last_7_days
+        ).count()
+        
+        if recent_completions > 0:
+            alerts.append({
+                'type': 'success',
+                'message': f'{recent_completions} orders completed in the last 7 days'
+            })
+        
+        # Prepare chart data for JSON
+        context.update({
+            'total_orders': total_orders,
+            'completed_orders': completed_orders,
+            'in_progress_orders': in_progress_orders,
+            'recent_orders': recent_orders,
+            'completion_rate': round(completion_rate, 1),
+            'avg_completion_days': round(avg_completion_days, 1),
+            'overdue_orders': overdue_orders,
+            'status_data': json.dumps(list(status_data)),
+            'monthly_data': json.dumps(monthly_data),
+            'phase_analysis': phase_analysis,
+            'top_sites': top_sites,
+            'recent_activity': recent_activity,
+            'supervisor_performance': supervisor_performance,
+            'alerts': alerts,
+        })
+        
+        return context

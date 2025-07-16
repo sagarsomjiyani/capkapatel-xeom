@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from simple_history.models import HistoricalRecords
+from django.utils import timezone
 
 # Create your models here.
 class order(models.Model):
@@ -45,9 +46,17 @@ class order(models.Model):
     
     history = HistoricalRecords()
 
-    #def save(self, *args, **kwargs):   
+    def save(self, *args, **kwargs):   
         # Automatically mark status as 'Completed' if 'receipt_by_maintenance' is filled
-        #if self.receipt_by_maintenance:
-        #    self.status = 'Completed'
-        #super().save(*args, **kwargs)
+        if self.erector:
+            self.erector_decided = timezone.now().date()
+        if self.supervisor:
+            self.supervisor_decided = timezone.now().date()
+        if self.order_release:
+            self.status = "In Progress"
+        if self.receipt_by_maintenance:
+            self.status = "Completed"
+
+        super().save(*args, **kwargs) # Call the original save method
+            
     

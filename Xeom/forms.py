@@ -177,7 +177,6 @@ class JSONListField(forms.Field):
             if total_percentage > 100:
                 raise ValidationError("Total percentage cannot exceed 100% across all items.")
             
-
 # --- Existing Forms (with updates for JSON fields) ---
 class OrderCreateForm(forms.ModelForm):
     """
@@ -225,7 +224,7 @@ class OrderDetailForm(forms.ModelForm):
     po_release = JSONListField(required=False, label="PO Release Stages")
     material_dump = JSONListField(required=False, label="Material Dump Stages")
     installation = JSONListField(required=False, label="Installation Stages")
-    #erector = forms.ChoiceField(choices=[('SOVANJI','SOVANJI'),('PRAVINBHAI','PRAVINBHAI'),('ROSHANBHAI','ROSHANBHAI'),('BHAVESHBHAI','BHAVESHBHAI'),('JATINBHAI','JATINBHAI'),('DIPAKBHAI','DIPAKBHAI'),('KIRANBHAI','KIRANBHAI'),('MUNAVARBHAI','MUNAVARBHAI'),('KAUSHIKBHAI','KAUSHIKBHAI'),('RAJU','RAJU'),('ASHOKBHAI','ASHOKBHAI'),('OM PRAKASH','OM PRAKASH')], widget=forms.Select(attrs={'class': 'form-select'}))
+    
     class Meta:
         model = order
         basic_fields = [
@@ -233,10 +232,10 @@ class OrderDetailForm(forms.ModelForm):
             'block', 'lift_number', 'lift_quantity', 'sales_executive'
         ]
         add_fields = [
-            'order_release', 'supervisor' ,'supervisor_decided', 'bom_ready', 'gad_send_for_sign',
-            'kick_off_meeting', 'scaffolding_message', 'scaffolding_delivery','erector', 'erector_decided',
+            'order_release', 'supervisor' , 'bom_ready', 'gad_send_for_sign',
+            'kick_off_meeting', 'scaffolding_message', 'scaffolding_delivery','erector', 
             'erector_file_ready', 'scaffolding_installation', 'reading_receipt',
-            'installation', 'lift_handover', 'gad_sign_complete', 'form_a_submitted',
+            'lift_handover', 'gad_sign_complete', 'form_a_submitted',
             'form_a_permission_received', 'form_b_submitted', 'license_received',
             'license_handover', 'handover_oc_submitted', 'email_to_maintenance',
             'receipt_by_maintenance', 'status'
@@ -257,18 +256,17 @@ class OrderDetailForm(forms.ModelForm):
 
             # Date fields - all set to type 'date' for HTML5 date picker
             'order_release': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'supervisor_decided': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            #'supervisor_decided': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'bom_ready': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'gad_send_for_sign': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'kick_off_meeting': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'scaffolding_message': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'scaffolding_delivery': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'erector': forms.Select(attrs={'class':'form-select','placeholder':'Select Ecrector'}),
-            'erector_decided': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            #'erector_decided': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'erector_file_ready': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'scaffolding_installation': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'reading_receipt': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            #'installation': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'lift_handover': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'gad_sign_complete': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'form_a_submitted': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
@@ -279,11 +277,6 @@ class OrderDetailForm(forms.ModelForm):
             'handover_oc_submitted': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'email_to_maintenance': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'receipt_by_maintenance': ValidatedDateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            # IMPORTANT: The 'po_release' and 'material_dump' entries must NOT be here
-            # because they are already defined as JSONListField class attributes above.
-            # Example (REMOVE THESE LINES IF THEY EXIST):
-            # 'po_release': JSONListField(required=False, label="PO Release Stages"),
-            # 'material_dump': JSONListField(required=False, label="Material Dump Stages")
         }
 
     # Define group-to-field mappings for activities
@@ -303,9 +296,10 @@ class OrderDetailForm(forms.ModelForm):
     # Define workflow dependencies based on the flowchart
     WORKFLOW_DEPENDENCIES = {
         'order_release': [],
-        'supervisor_decided': ['order_release'],
+        'supervisor': ['order_release'],
+        'supervisor_decided': ['supervisor'],
         'erector':['order_release'],
-        'erector_decided':['order_release'],
+        'erector_decided':['erector'],
         'erector_file_ready': ['erector_decided'],
         'bom_ready': ['order_release'],
         'gad_send_for_sign': ['order_release'],
@@ -321,7 +315,7 @@ class OrderDetailForm(forms.ModelForm):
         'license_received': ['form_b_submitted'],
         'scaffolding_installation': ['scaffolding_delivery', 'erector_file_ready'],
         'reading_receipt': ['scaffolding_installation'],
-        'installation': ['reading_receipt', 'material_dump'],
+        'installation': ['material_dump'],
         'lift_handover': ['installation'],
         'license_handover': ['lift_handover', 'license_received'],
         'handover_oc_submitted': ['license_handover'],
@@ -372,7 +366,7 @@ class OrderDetailForm(forms.ModelForm):
     BASIC_INFO_FIELDS = [
         'order_number', 'equipment_number', 'agreement_number',
         'site_name', 'block', 'lift_number', 'lift_quantity',
-        #'sales_executive', 'supervisor', 'status',
+        #'sales_executive'#, 'supervisor', 'status',
     ]
 
     def __init__(self, *args, **kwargs):
@@ -400,6 +394,8 @@ class OrderDetailForm(forms.ModelForm):
         user_groups = self.user.groups.values_list('name', flat=True)
         user_allowed_activity_fields = set()
 
+        # List the list of groups the user is belonging to becasue user can be part of muliple groups.
+        # and then it will update the user allowed activities based on the group it is beloning to 
         for group_name in user_groups:
             if group_name in self.GROUP_ACTIVITY_MAPPING:
                 user_allowed_activity_fields.update(self.GROUP_ACTIVITY_MAPPING[group_name])
@@ -407,33 +403,31 @@ class OrderDetailForm(forms.ModelForm):
         # Create a list of field names that should be present in the final form, in order
         final_field_names_in_order = []
 
-        # Add basic info fields first
-        for f_name in self.BASIC_INFO_FIELDS:
-            if f_name in self.fields:
-                final_field_names_in_order.append(f_name)
+        # # Add basic info fields first
+        # for f_name in self.BASIC_INFO_FIELDS:
+        #     if f_name in self.fields:
+        #         final_field_names_in_order.append(f_name)
 
         # Add activity fields based on permissions
         all_meta_fields = list(self._meta.fields)
         
+        # Based on the above fetch lsit of user allowed activities, now we shall check whether the field is part of form's meta fields
         for f_name in all_meta_fields:
             if f_name in self.BASIC_INFO_FIELDS:
-                continue # Already handled
-
+                final_field_names_in_order.append(f_name)
+                
             if f_name in user_allowed_activity_fields:
                 if f_name not in final_field_names_in_order: # Prevent duplicates
                     final_field_names_in_order.append(f_name)
 
-        # Add supervisor and status explicitly after basic fields and before other activities if not already added
-        # if 'supervisor' in self.fields and 'supervisor' not in final_field_names_in_order:
-        #     final_field_names_in_order.append('supervisor')
-        # if 'status' in self.fields and 'status' not in final_field_names_in_order:
-        #     final_field_names_in_order.append('status')
 
         # Now, reconstruct self.fields to reflect the desired order and visibility
         ordered_fields = OrderedDict()
         for field_name in final_field_names_in_order:
             if field_name in self.fields:
                 ordered_fields[field_name] = self.fields[field_name]
+            # if self.initial[field_name] == "" or self.initial[field_name] is None: 
+            #     break
 
         self.fields = ordered_fields
 
@@ -453,14 +447,15 @@ class OrderDetailForm(forms.ModelForm):
                     # Field is editable if its current value (list) is empty, AND prerequisites are met
                     # Note: an empty list [] evaluates to False, so 'not field_value' works here.
                     is_editable = not field_value and self._are_prerequisites_met(field_name)
-                    self._set_field_editable_state(bound_field, not is_editable) # Set readonly to opposite of is_editable
+                    self._set_field_editable_state(bound_field, not is_editable,field_name) # Set readonly to opposite of is_editable
                 else:
                     # For other activity fields (like date fields), it's editable if no value exists and prerequisites are met
                     is_editable = not field_value and self._are_prerequisites_met(field_name)
-                    self._set_field_editable_state(bound_field, not is_editable) # Set readonly to opposite of is_editable
+                    self._set_field_editable_state(bound_field, not is_editable,field_name) # Set readonly to opposite of is_editable
+                    
             else:
                 # Fields not in basic info and not allowed by user groups should be readonly
-                self._set_field_editable_state(bound_field, True)
+                self._set_field_editable_state(bound_field, True,field_name)
 
     def _are_prerequisites_met(self, field_name):
         prerequisites = self.WORKFLOW_DEPENDENCIES.get(field_name, [])
@@ -472,7 +467,7 @@ class OrderDetailForm(forms.ModelForm):
             prereq_value = getattr(self.instance, prereq, None)
             
             # Special handling for JSONListField prerequisites
-            if prereq in ['po_release', 'material_dump']:
+            if prereq in ['po_release', 'material_dump','installation']:
                 # If a JSONListField is a prerequisite, it must contain data (i.e., not be an empty list)
                 if not prereq_value or (isinstance(prereq_value, list) and not prereq_value):
                     return False
@@ -480,16 +475,21 @@ class OrderDetailForm(forms.ModelForm):
                 return False
         return True
 
-    def _set_field_editable_state(self, bound_field, make_readonly):
+    def _set_field_editable_state(self, bound_field, make_readonly,field_name):
+        field_value = getattr(self.instance, field_name)
         if make_readonly:
             bound_field.widget.attrs['readonly'] = True
             bound_field.widget.attrs['style'] = 'background-color: #e9ecef; cursor: not-allowed;'
             # For Select widgets, 'disabled' is used instead of 'readonly'
             if isinstance(bound_field.widget, forms.Select):
-                bound_field.widget.attrs['disabled'] = True
+                bound_field.widget.attrs['readonly'] = True
             # For JSONListWidget, hide add/remove buttons if readonly
             if isinstance(bound_field.widget, JSONListWidget):
                 bound_field.widget.attrs['readonly'] = True # Pass readonly to the widget for template logic
+            # if the field is reandy only and also it is empty then we shall hide the field
+            if not field_value:
+                bound_field.widget.attrs['hidden'] = True
+                bound_field.label = "" # Hide the field in the form
         else:
             if 'readonly' in bound_field.widget.attrs:
                 del bound_field.widget.attrs['readonly']
@@ -510,6 +510,7 @@ class OrderDetailForm(forms.ModelForm):
         for group_name in user_groups:
             if group_name in self.GROUP_ACTIVITY_MAPPING:
                 user_allowed_activity_fields.update(self.GROUP_ACTIVITY_MAPPING[group_name])
+                user_allowed_activity_fields.update(self.BASIC_INFO_FIELDS) # Always allow basic info fields
 
         # Validate permissions and workflow dependencies
         for field_name, value in list(cleaned_data.items()):
@@ -521,7 +522,7 @@ class OrderDetailForm(forms.ModelForm):
             original_value = getattr(self.instance, field_name, None)
 
             # Convert original_value for JSONListFields to a comparable format
-            if field_name in ['po_release', 'material_dump']:
+            if field_name in ['po_release', 'material_dump','installation']:
                 if original_value is None:
                     original_value_comparable = []
                 elif isinstance(original_value, str):
@@ -561,7 +562,7 @@ class OrderDetailForm(forms.ModelForm):
                         for prereq in prerequisites:
                             # Check if the prerequisite field exists and has a value
                             prereq_value = getattr(self.instance, prereq, None)
-                            if prereq in ['po_release', 'material_dump']:
+                            if prereq in ['po_release', 'material_dump','installation']:
                                 if not prereq_value or (isinstance(prereq_value, list) and not prereq_value):
                                     missing_prereqs_display_names.append(self.FIELD_DISPLAY_NAMES.get(prereq, prereq))
                             elif not prereq_value:
