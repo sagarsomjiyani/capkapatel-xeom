@@ -11,7 +11,7 @@
     <style>
         :root { /* CORRECTED: Changed .root to :root */
             --primary-color: #667eea;
-            --secondary-color: #764ba2;
+            /* --secondary-color: #764ba2; */
             --accent-color: #3498db;
             --text-color: #34495e;
             --light-bg: #f8f9fa;
@@ -20,6 +20,20 @@
             --border-color: #e9ecef;
             --shadow-light: 0 4px 15px rgba(0,0,0,0.08);
             --shadow-medium: 0 8px 25px rgba(0,0,0,0.1);
+             /* --primary-color: #007bff; */
+            --secondary-color: #193f61; 
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+            --info-color: #17a2b8;
+            --light-bg: #f4f7f6; /* Slightly lighter background */
+            --white-bg: #ffffff;
+            --border-color: #e0e6ed; /* Softer border */
+            --text-dark: #2c3e50; /* Darker text for contrast */
+            --text-muted: #7f8c8d;
+            --header-gradient-start: #4a69bd; /* New header gradient */
+            --header-gradient-end: #183571;
+            --card-shadow: 0 4px 15px rgba(0,0,0,0.07); /* Softer shadow */
         }
 
         body {
@@ -177,7 +191,7 @@
             margin-bottom: 0;
         }
         .table thead th {
-            background-color: var(--dark-bg);
+            background-color: var(--secondary-color);
             color: white;
             border-bottom: none;
             padding: 1rem 1.5rem;
@@ -196,8 +210,8 @@
 
         /* Footer Styling */
         .footer {
-            background-color: var(--dark-bg);
-            color: rgba(255, 255, 255, 0.7);
+            background-color: var(--secondary-color);
+            color: white;
             padding: 1.5rem 0;
             text-align: center;
             margin-top: auto; /* Pushes footer to the bottom */
@@ -240,7 +254,10 @@
                 margin-bottom: 0.5rem;
             }
         }
+    
     </style>
+    {% block extra_css %}
+    {% endblock extra_css %}
 </head>
 <body>
     <nav class="navbar navbar-expand-lg">
@@ -263,11 +280,13 @@
                             <i class="fas fa-list me-2"></i>Orders
                         </a>
                     </li>
+                    {% if 'Admin' in user_groups %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.resolver_match.url_name == 'order_create' %}active{% endif %}" href="{% url 'order_create' %}">
                             <i class="fas fa-plus me-2"></i>New Order
                         </a>
                     </li>
+                    {% endif %}
                     {% if user.is_authenticated %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">

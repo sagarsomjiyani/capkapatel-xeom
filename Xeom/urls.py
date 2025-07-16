@@ -11,6 +11,7 @@ urlpatterns = [
     path('<str:order_number>/', views.OrderDetailView.as_view(), name='order_detail'),
     path('<str:order_number>/update/', views.OrderUpdateView.as_view(), name='order_update'),
     path('<str:order_number>/delete/', views.OrderDeleteView.as_view(), name='order_delete'),
+    path('orders/export/xls/', views.export_orders_xls, name='export_orders_xls'),
 
     
     # API URLs

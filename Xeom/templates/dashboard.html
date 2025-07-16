@@ -2,508 +2,815 @@
 {% load static %}
 
 {% block extra_css %}
-<!-- Dashboard specific styles -->
 <style>
-    .dashboard-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+
+    .dashboard-header {
+        background: linear-gradient(135deg, var(--header-gradient-start) 0%, var(--header-gradient-end) 100%);
         color: white;
-        border-radius: 15px;
-        padding: 1.5rem;
-        margin-bottom: 1rem;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        padding: 3rem 0;
+        margin-bottom: 2.5rem;
+        border-bottom-left-radius: 25px; /* More pronounced curves */
+        border-bottom-right-radius: 25px;
+        box-shadow: var(--card-shadow);
+        text-align: center;
+        position: relative;
+        overflow: hidden; /* For potential background patterns */
     }
 
-    .dashboard-card:hover {
+    .dashboard-header h1 {
+        font-weight: 700;
+        font-size: 2.8rem;
+        margin-bottom: 0.75rem;
+        text-shadow: 1px 1px 3px rgba(0,0,0,0.2);
+    }
+
+    .dashboard-header .welcome-text {
+        font-size: 1.2rem;
+        opacity: 0.95;
+    }
+
+    .card {
+        background-color: var(--white-bg);
+        border-radius: 15px; /* Slightly more rounded */
+        box-shadow: var(--card-shadow);
+        margin-bottom: 1.8rem; /* Consistent spacing */
+        border: none;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        height: 100%;
+    }
+
+    .card:hover {
         transform: translateY(-5px);
-        box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.12); /* Enhanced hover shadow */
+    }
+
+    .card-title {
+        font-weight: 600;
+        color: var(--text-dark);
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        font-size: 1.25rem; /* Larger title */
+    }
+    .card-title i {
+        margin-right: 12px;
+        color: var(--primary-color);
+        font-size: 1.5rem; /* Larger icon */
     }
 
     .metric-card {
-        background: white;
-        border-radius: 12px;
-        padding: 1.5rem;
+        padding: 1.8rem; /* More padding */
         text-align: center;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
-        transition: transform 0.3s ease;
-        border-left: 4px solid;
+        border-left: 6px solid; /* Thicker border */
+        border-radius: 15px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
     }
 
-    .metric-card:hover {
-        transform: translateY(-3px);
-    }
-
-    .metric-card.primary { border-left-color: #007bff; }
-    .metric-card.success { border-left-color: #28a745; }
-    .metric-card.warning { border-left-color: #ffc107; }
-    .metric-card.danger { border-left-color: #dc3545; }
-    .metric-card.info { border-left-color: #17a2b8; }
+    .metric-card.primary { border-left-color: var(--primary-color); }
+    .metric-card.success { border-left-color: var(--success-color); }
+    .metric-card.warning { border-left-color: var(--warning-color); }
+    .metric-card.danger { border-left-color: var(--danger-color); }
+    .metric-card.info { border-left-color: var(--info-color); }
 
     .metric-number {
-        font-size: 2.5rem;
+        font-size: 2.8rem; /* Larger numbers */
         font-weight: 700;
         margin-bottom: 0.5rem;
+        color: var(--text-dark);
+        line-height: 1;
     }
 
     .metric-label {
-        color: #6c757d;
+        color: var(--text-muted);
         font-size: 0.9rem;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.8px; /* More spacing */
     }
 
+    /* Adjustments for charts */
     .chart-container {
-        background: white;
-        border-radius: 12px;
-        padding: 1.5rem;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
-        margin-bottom: 2rem;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    /* Crucial: Set a fixed height for the container */
+    height: 500px; /* Adjust this value as needed. This is the max height you want. */
+    overflow: hidden; /* Hide any overflowing content */
+}
+
+/* The canvas inside the flex container should explicitly take 100% height */
+    .chart-container canvas {
+    /* flex-grow: 1;  <-- REMOVE THIS. It encourages unbounded growth in a flex context. */
+    height: 100% !important; /* Forces the canvas height to 100% of its container. Use !important if other styles are overriding. */
+    width: 100% !important;  /* Ensure it also takes full width */
+    min-height: 250px; /* Keep a minimum height for very small containers */
+    max-height: 100%; /* Redundant with height: 100%, but good for clarity */
+}
+
+    .activity-item,
+    .worklist-item {
+        padding: 1.2rem; /* More padding */
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: background-color 0.2s ease;
     }
 
-    .recent-activity {
-        background: white;
-        border-radius: 12px;
-        padding: 1.5rem;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    .activity-item:hover,
+    .worklist-item:hover {
+        background-color: var(--light-bg);
     }
 
-    .activity-item {
-        padding: 1rem;
-        border-bottom: 1px solid #eee;
-        transition: background-color 0.3s ease;
-    }
-
-    .activity-item:hover {
-        background-color: #f8f9fa;
-    }
-
-    .activity-item:last-child {
+    .activity-item:last-child,
+    .worklist-item:last-child {
         border-bottom: none;
     }
 
     .status-badge {
-        padding: 0.25rem 0.75rem;
-        border-radius: 20px;
-        font-size: 0.8rem;
-        font-weight: 500;
+        padding: 0.4rem 1rem; /* Larger badge */
+        border-radius: 25px; /* More rounded */
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-transform: capitalize;
     }
 
-    .status-completed { background: #d4edda; color: #155724; }
-    .status-progress { background: #fff3cd; color: #856404; }
+    .status-completed { background-color: #d4edda; color: #155724; }
+    .status-in-progress { background-color: #fff3cd; color: #856404; }
+    /* Assuming other statuses might exist, you'd add more rules like: */
+    .status-overdue { background-color: #f8d7da; color: #721c24; }
+
 
     .alert-custom {
-        border-left: 4px solid;
-        border-radius: 8px;
-        padding: 1rem;
-        margin-bottom: 1rem;
+        border-left: 6px solid; /* Thicker border */
+        border-radius: 10px; /* More rounded */
+        padding: 1.2rem 1.8rem; /* More padding */
+        margin-bottom: 2rem;
         display: flex;
         align-items: center;
+        font-size: 1rem;
     }
     .alert-custom .icon {
-        margin-right: 10px;
-        font-size: 1.2rem;
+        margin-right: 20px; /* More space for icon */
+        font-size: 1.8rem; /* Larger icon */
     }
-    .alert-custom.alert-success { border-color: #28a745; background-color: #d4edda; color: #155724; }
-    .alert-custom.alert-warning { border-color: #ffc107; background-color: #fff3cd; color: #856404; }
-    .alert-custom.alert-danger { border-color: #dc3545; background-color: #f8d7da; color: #721c24; }
+    .alert-custom.alert-success { border-color: var(--success-color); background-color: rgba(40, 167, 69, 0.1); color: #1e7e34; }
+    .alert-custom.alert-warning { border-color: var(--warning-color); background-color: rgba(255, 193, 7, 0.1); color: #b08d00; }
+    .alert-custom.alert-danger { border-color: var(--danger-color); background-color: rgba(220, 53, 69, 0.1); color: #a71d2a; }
+    .alert-custom.alert-info { border-color: var(--info-color); background-color: rgba(23, 162, 184, 0.1); color: #0a6f8f; } /* Added info alert style */
 
-
-    .page-title {
-        font-weight: 700;
-        color: #2c3e50;
-        margin-bottom: 2rem;
-    }
 
     .progress-ring {
-        width: 80px;
+        width: 80px; /* Larger ring */
         height: 80px;
-        margin: 0 auto 1rem;
+        margin: 0 auto;
     }
 
     .progress-ring-circle {
-        stroke: #e9ecef;
-        stroke-width: 8;
+        stroke: var(--border-color);
+        stroke-width: 8; /* Thicker stroke */
         fill: transparent;
-        r: 30;
+        r: 32; /* Adjust radius */
         cx: 40;
         cy: 40;
     }
 
     .progress-ring-progress {
-        stroke: #28a745;
+        stroke: var(--success-color); /* Default, can be dynamic */
         stroke-width: 8;
         fill: transparent;
-        r: 30;
+        r: 32;
         cx: 40;
         cy: 40;
-        stroke-dasharray: 188.5;
-        stroke-dashoffset: 188.5;
+        stroke-dasharray: calc(2 * 3.14159 * 32); /* Circumference */
+        stroke-dashoffset: calc(2 * 3.14159 * 32);
         transform: rotate(-90deg);
         transform-origin: 40px 40px;
         transition: stroke-dashoffset 0.5s ease;
     }
 
-    /* Worklist Specific Styles */
-    .worklist-card {
-        background: white;
-        border-radius: 12px;
-        padding: 1.5rem;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
-        margin-bottom: 2rem;
+    /* Worklist specific styles */
+    .worklist-card .table thead th {
+        border-bottom: 2px solid var(--border-color);
+        padding-bottom: 1.2rem;
+        font-size: 0.95rem;
+        color: whitesmoke;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
     }
 
-    .worklist-item {
-        padding: 1rem;
-        border-bottom: 1px solid #eee;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        transition: background-color 0.3s ease;
-    }
-
-    .worklist-item:hover {
-        background-color: #f8f9fa;
-    }
-
-    .worklist-item:last-child {
-        border-bottom: none;
-    }
-
-    .worklist-item .order-info {
-        flex-grow: 1;
-    }
-
-    .worklist-item .action-info {
-        text-align: right;
+    .worklist-card .table tbody td {
+        vertical-align: middle;
+        padding: 1.1rem 0.8rem;
     }
 
     .days-pending-badge {
-        display: inline-block;
-        padding: 0.3em 0.6em;
-        font-size: 0.75em;
-        font-weight: 700;
-        line-height: 1;
+        padding: 0.5em 1em; /* Larger badge */
+        font-size: 0.8em;
+        font-weight: 600;
+        border-radius: 0.4rem;
+        min-width: 80px; /* Larger min-width */
         text-align: center;
-        white-space: nowrap;
-        vertical-align: baseline;
-        border-radius: 0.25rem;
-        margin-left: 0.5rem;
+        display: inline-block;
     }
-    .days-pending-badge.green { background-color: #28a745; color: white; } /* Less than 7 days */
-    .days-pending-badge.orange { background-color: #ffc107; color: #343a40; } /* 7-30 days */
-    .days-pending-badge.red { background-color: #dc3545; color: white; } /* More than 30 days */
+    .days-pending-badge.green { background-color: var(--success-color); color: white; }
+    .days-pending-badge.orange { background-color: var(--warning-color); color: var(--text-dark); } /* Changed text-color for orange to dark for better contrast */
+    .days-pending-badge.red { background-color: var(--danger-color); color: white; }
+
+    /* List group styling for Top Sites / Supervisor Performance */
+    .list-group-item {
+        border-color: var(--border-color);
+    }
+    .list-group-item:last-child {
+        border-bottom-right-radius: 15px;
+        border-bottom-left-radius: 15px;
+    }
+
+
+    /* Responsive adjustments */
+    @media (max-width: 991.98px) { /* Adjust for medium and small screens */
+        .dashboard-header {
+            padding: 2rem 0;
+            margin-bottom: 1.5rem;
+            border-bottom-left-radius: 15px;
+            border-bottom-right-radius: 15px;
+        }
+        .dashboard-header h1 {
+            font-size: 2.2rem;
+        }
+        .dashboard-header .welcome-text {
+            font-size: 1rem;
+        }
+        .card {
+            margin-bottom: 1.5rem;
+        }
+        .metric-card {
+            padding: 1.2rem;
+        }
+        .metric-number {
+            font-size: 2rem;
+        }
+        .metric-label {
+            font-size: 0.8rem;
+        }
+        .alert-custom {
+            padding: 1rem 1.2rem;
+            font-size: 0.9rem;
+        }
+        .alert-custom .icon {
+            font-size: 1.4rem;
+            margin-right: 15px;
+        }
+        .worklist-card .table th,
+        .worklist-card .table td {
+            font-size: 0.8rem;
+            padding: 0.9rem 0.6rem;
+        }
+        .days-pending-badge {
+            font-size: 0.7em;
+            padding: 0.4em 0.8em;
+            min-width: 65px;
+        }
+        /* Adjusted height for smaller screens */
+        .chart-container {
+            height: 350px; /* Slightly less height on smaller desktops/laptops */
+        }
+        .chart-container canvas {
+            min-height: 200px;
+            max-height: 100%; /* Important: Constrain max height to container's height */
+        }
+    }
+
+    @media (max-width: 767.98px) { /* Adjust for small screens */
+        .dashboard-header {
+            padding: 1.5rem 0;
+            margin-bottom: 1rem;
+            border-radius: 0; /* No border-radius on small screens for full width */
+        }
+        .dashboard-header h1 {
+            font-size: 1.8rem;
+        }
+        .dashboard-header .welcome-text {
+            font-size: 0.9rem;
+        }
+        .card {
+            margin-bottom: 1rem;
+            border-radius: 10px;
+        }
+        .card-title {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+        }
+        .card-title i {
+            font-size: 1.3rem;
+            margin-right: 8px;
+        }
+        .metric-card {
+            padding: 1rem;
+            border-left-width: 4px;
+        }
+        .metric-number {
+            font-size: 1.6rem;
+        }
+        .metric-label {
+            font-size: 0.75rem;
+            letter-spacing: 0.2px;
+        }
+        .alert-custom {
+            padding: 0.8rem 1rem;
+            font-size: 0.85rem;
+            margin-bottom: 1rem;
+        }
+        .alert-custom .icon {
+            font-size: 1.2rem;
+            margin-right: 10px;
+        }
+        .worklist-card .table th,
+        .worklist-card .table td {
+            font-size: 0.75rem;
+            padding: 0.7rem 0.4rem;
+        }
+        .days-pending-badge {
+            font-size: 0.6em;
+            padding: 0.3em 0.5em;
+            min-width: 55px;
+        }
+        .btn-lg {
+            padding: 0.5rem 1rem;
+            font-size: 0.9rem;
+        }
+        .progress-ring {
+            width: 60px;
+            height: 60px;
+        }
+        .progress-ring-circle, .progress-ring-progress {
+            stroke-width: 5;
+            r: 25;
+            cx: 30;
+            cy: 30;
+            stroke-dasharray: calc(2 * 3.14159 * 25);
+            stroke-dashoffset: calc(2 * 3.14159 * 25);
+        }
+        /* Further adjusted height for mobile screens */
+        .chart-container {
+            height: 300px; /* Smaller height on mobile devices */
+        }
+        .chart-container canvas {
+            min-height: 150px;
+            max-height: 100%; /* Important: Constrain max height to container's height */
+        }
+    }
 </style>
 {% endblock extra_css %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1 class="page-title">
-        <i class="fas fa-chart-line"></i> Dashboard
-    </h1>
-    <div class="d-flex align-items-center">
-        <span class="me-3">Welcome, {{ user.get_full_name|default:user.username }}</span>
-        {% if 'Admin' in user_groups or 'Sales Person' in user_groups %}
-        <a href="{% url 'order_create' %}" class="btn btn-primary">
-            <i class="fas fa-plus"></i> New Order
+<header>
+    <div class="container-fluid">       
+        {% if 'Admin' in user_groups %}
+        <a href="{% url 'order_create' %}" class="btn btn-primary float-end btn-lg ">
+            <i class="fas fa-plus me-3"></i> New Order
         </a>
         {% endif %}
     </div>
-</div>
+</header>
 
-<!-- Alerts -->
-<!-- {% if alerts %}
-<div class="row mb-4">
-    <div class="col-12">
-        {% for alert in alerts %}
-        <div class="alert alert-{{ alert.type }} alert-custom">
-            <i class="icon fas fa-{% if alert.type == 'success' %}check-circle{% elif alert.type == 'warning' %}exclamation-triangle{% elif alert.type == 'danger' %}times-circle{% else %}info-circle{% endif %}"></i>
-            {{ alert.message }}
-        </div>
-        {% endfor %}
-    </div>
-</div>
-{% endif %} -->
-
-<!-- Worklist Section (for all users) -->
-<div class="row mb-4">
-    <div class="col-12">
-        <div class="worklist-card">
-            <h5 class="mb-3"><i class="fas fa-clipboard-list me-2"></i>My Worklist</h5>
-            {% if worklist_orders %}
-            <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                    <thead>
-                        <tr>
-                            <th>Order Number</th>
-                            <th>Site Name</th>
-                            <th>Equipment No.</th>
-                            <th>Next Action</th>
-                            <th>Days Pending</th>
-                            <th>Last Completed Date</th>
-                            <th>Sales Executive</th>
-                            <th>Supervisor</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in worklist_orders %}
-                        <tr>
-                            <td><strong>{{ item.order.order_number }}</strong></td>
-                            <td>{{ item.order.site_name }}</td>
-                            <td>{{ item.order.equipment_number }}</td>
-                            <td>
-                                {{ item.next_action_display }}
-                            </td>
-                            <td>
-                                {% if item.days_pending is not None %}
-                                    <span class="days-pending-badge {% if item.days_pending <= 7 %}green{% elif item.days_pending <= 30 %}orange{% else %}red{% endif %}">
-                                        {{ item.days_pending }} days
-                                    </span>
-                                {% else %}
-                                    N/A
-                                {% endif %}
-                            </td>
-                            <td>{{ item.last_completed_date|date:"M d, Y" }}</td>
-                            <td>{{ item.order.sales_executive.get_full_name|default:item.order.sales_executive.username }}</td>
-                            <td>{{ item.order.supervisor.get_full_name|default:item.order.supervisor|default:"N/A" }}</td>
-                            <td>
-                                <a href="{{ item.order_detail_url }}" class="btn btn-sm btn-info">
-                                    <i class="fas fa-eye"></i> View
-                                </a>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+<main class="container-fluid">
+    <section class="row mb-4">
+        <!-- <div class="col-12">
+            {% if alerts %}
+                {% for alert in alerts %}
+                <div class="alert alert-{{ alert.type }} alert-custom">
+                    <i class="icon fas fa-{% if alert.type == 'success' %}check-circle{% elif alert.type == 'warning' %}exclamation-triangle{% elif alert.type == 'danger' %}times-circle{% elif alert.type == 'info' %}info-circle{% else %}info-circle{% endif %}"></i>
+                    <div>{{ alert.message }}</div>
+                </div>
+                {% endfor %}
             {% else %}
-            <div class="alert alert-info text-center" role="alert">
-                <i class="fas fa-info-circle me-2"></i> No pending actions in your worklist. Great job!
-            </div>
+            {# Optional: Display a general info alert if no specific alerts #}
+            {# <div class="alert alert-info alert-custom">
+                <i class="icon fas fa-info-circle"></i>
+                <div>No new notifications at the moment.</div>
+            </div> #}
             {% endif %}
-        </div>
-    </div>
-</div>
+        </div> -->
+    </section>
 
-{% if is_admin %}
-<!-- Key Metrics (Admin Only) -->
-<div class="row mb-4">
-    <div class="col-md-2">
-        <div class="metric-card primary">
-            <div class="metric-number text-primary">{{ total_orders }}</div>
-            <div class="metric-label">Total Orders</div>
-        </div>
-    </div>
-    <div class="col-md-2">
-        <div class="metric-card success">
-            <div class="metric-number text-success">{{ completed_orders }}</div>
-            <div class="metric-label">Completed</div>
-        </div>
-    </div>
-    <div class="col-md-2">
-        <div class="metric-card warning">
-            <div class="metric-number text-warning">{{ in_progress_orders }}</div>
-            <div class="metric-label">In Progress</div>
-        </div>
-    </div>
-    <div class="col-md-2">
-        <div class="metric-card info">
-            <div class="metric-number text-info">{{ recent_orders }}</div>
-            <div class="metric-label">Last 30 Days</div>
-        </div>
-    </div>
-    <div class="col-md-2">
-        <div class="metric-card danger">
-            <div class="metric-number text-danger">{{ overdue_orders }}</div>
-            <div class="metric-label">Overdue</div>
-        </div>
-    </div>
-    <div class="col-md-2">
-        <div class="metric-card success">
-            <div class="metric-number text-success">{{ completion_rate }}%</div>
-            <div class="metric-label">Completion Rate</div>
-        </div>
-    </div>
-</div>
-
-<!-- Charts Row (Admin Only) -->
-<div class="row mb-4">
-    <div class="col-md-8">
-        <div class="chart-container">
-            <h5 class="mb-3"><i class="fas fa-chart-line me-2"></i>Monthly Order Trends</h5>
-            <canvas id="monthlyChart"></canvas>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="chart-container">
-            <h5 class="mb-3"><i class="fas fa-chart-pie me-2"></i>Order Status Distribution</h5>
-            <canvas id="statusChart"></canvas>
-        </div>
-    </div>
-</div>
-
-<!-- Phase Analysis (Admin Only) -->
-<div class="row mb-4">
-    <div class="col-md-8">
-        <div class="chart-container">
-            <h5 class="mb-3"><i class="fas fa-tasks me-2"></i>Order Phase Progress</h5>
-            <div class="row text-center">
-                <div class="col-2">
-                    <div class="metric-number text-primary">{{ phase_analysis.bom_ready }}</div>
-                    <small class="text-muted">BOM Ready</small>
-                </div>
-                <div class="col-2">
-                    <div class="metric-number text-info">{{ phase_analysis.kick_off_meeting }}</div>
-                    <small class="text-muted">Kick Off</small>
-                </div>
-                <div class="col-2">
-                    <div class="metric-number text-warning">{{ phase_analysis.scaffolding_installation }}</div>
-                    <small class="text-muted">Scaffolding</small>
-                </div>
-                <div class="col-2">
-                    <div class="metric-number text-danger">{{ phase_analysis.installation }}</div>
-                    <small class="text-muted">Installation</small>
-                </div>
-                <div class="col-2">
-                    <div class="metric-number text-success">{{ phase_analysis.lift_handover }}</div>
-                    <small class="text-muted">Handover</small>
-                </div>
-                <div class="col-2">
-                    <div class="metric-number text-primary">{{ phase_analysis.license_received }}</div>
-                    <small class="text-muted">Licensed</small>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="chart-container">
-            <h5 class="mb-3"><i class="fas fa-building me-2"></i>Top Sites</h5>
-            {% for site in top_sites %}
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <span>{{ site.site_name }}</span>
-                <span class="badge bg-primary">{{ site.order_count }}</span>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-</div>
-
-<!-- Recent Activity (Admin Only) -->
-<div class="row">
-    <div class="col-md-8">
-        <div class="recent-activity">
-            <h5 class="mb-3"><i class="fas fa-clock me-2"></i>Recent Activity</h5>
-            {% for order in recent_activity %}
-            <div class="activity-item">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <strong>{{ order.order_number }}</strong> - {{ order.site_name }}
-                        <br>
-                        <small class="text-muted">{{ order.equipment_number }}</small>
+    <section class="row mb-4">
+        <div class="col-12">
+            <div class="card worklist-card">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="fas fa-clipboard-list me-2"></i>My Worklist</h5>
+                    {% if worklist_orders %}
+                    <div class="table-responsive">
+                        <table class="table table-hover table-borderless align-middle mb-0">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Order Number</th>
+                                    <th>Site Name</th>
+                                    <th>Equipment No.</th>
+                                    <th>Next Action</th>
+                                    <th>Days Pending</th>
+                                    <th>Last Completed Date</th>
+                                    <th>Sales Executive</th>
+                                    <th>Supervisor</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in worklist_orders %}
+                                <tr>
+                                    <td><strong>{{ item.order.order_number }}</strong></td>
+                                    <td>{{ item.order.site_name }}</td>
+                                    <td>{{ item.order.equipment_number }}</td>
+                                    <td>
+                                        <span class="badge bg-info text-dark">{{ item.next_action_display }}</span>
+                                    </td>
+                                    <td>
+                                        {% if item.days_pending is not None %}
+                                            <span class="days-pending-badge {% if item.days_pending <= 7 %}green{% elif item.days_pending <= 30 %}orange{% else %}red{% endif %}">
+                                                {{ item.days_pending }} days
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">N/A</span> {# More descriptive for N/A #}
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ item.last_completed_date|date:"M d, Y" }}</td>
+                                    <td>{{ item.order.sales_executive.get_full_name|default:item.order.sales_executive.username }}</td>
+                                    <td>{{ item.order.supervisor.get_full_name|default:item.order.supervisor|default:"N/A" }}</td>
+                                    <td>
+                                        <a href="{{ item.order_detail_url }}" class="btn btn-sm btn-outline-primary rounded-pill">
+                                            <i class="fas fa-eye me-1"></i> View
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
-                    <div class="text-end">
-                        <span class="status-badge status-{{ order.status|lower|cut:' ' }}">
-                            {{ order.status }}
-                        </span>
-                        <br>
-                        <small class="text-muted">{{ order.order_release|date:"M d, Y" }}</small>
+                    {% else %}
+                    <div class="alert alert-info text-center py-4" role="alert">
+                        <i class="fas fa-check-circle me-2"></i> All tasks completed! No pending actions in your worklist.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="row mb-4">
+        <div class="col-lg-4 col-md-6 col-sm-12 mb-3">
+            <div class="card metric-card primary">
+                <div class="metric-number text-primary">{{ total_orders|default:0 }}</div> {# Added default:0 for robustness #}
+                <div class="metric-label">Total Orders</div>
+            </div>
+        </div>
+        <div class="col-lg-4 col-md-6 col-sm-12 mb-3">
+            <div class="card metric-card success">
+                <div class="metric-number text-success">{{ completed_orders|default:0 }}</div>
+                <div class="metric-label">Completed Orders</div>
+            </div>
+        </div>
+        <div class="col-lg-4 col-md-12 col-sm-12 mb-3">
+            <div class="card metric-card warning">
+                <div class="metric-number text-warning">{{ in_progress_orders|default:0 }}</div>
+                <div class="metric-label">Orders In Progress</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="row mb-8">
+        <div class="col-12">
+            <div class="card chart-container">
+                <h5 class="card-title"><i class="fas fa-chart-pie me-2"></i>Order Status Distribution</h5>
+                {# Ensure status_data is not empty before rendering canvas for chart #}
+                {% if status_data %}
+                <canvas id="statusChart"></canvas>
+                {% else %}
+                <div class="alert alert-info text-center py-4" role="alert">
+                    <i class="fas fa-info-circle me-2"></i> No order status data available to display the chart.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+
+    {% if is_admin %}
+    <hr class="my-5 border-secondary opacity-25"> {# Visual separator for admin section #}
+    <h3 class="mb-4 text-muted text-center fw-bold"> Insights</h3>
+
+    <!-- <section class="row mb-4">
+        <div class="col-lg-4 col-md-6 col-sm-12 mb-3">
+            <div class="card metric-card info">
+                <div class="metric-number text-info">{{ recent_orders|default:0 }}</div>
+                <div class="metric-label">Orders Last 30 Days</div>
+            </div>
+        </div>
+        <div class="lg-4 col-md-6 col-sm-12 mb-3">
+            <div class="card metric-card danger">
+                <div class="metric-number text-danger">{{ overdue_orders|default:0 }}</div>
+                <div class="metric-label">Overdue Orders</div>
+            </div>
+        </div>
+        <div class="col-lg-4 col-md-12 col-sm-12 mb-3">
+            <div class="card metric-card success">
+                <div class="metric-number text-success">{{ completion_rate|default:"0" }}%</div> {# Default to "0" for percentage #}
+                <div class="metric-label">Overall Completion Rate</div>
+            </div>
+        </div>
+    </section> -->
+
+    <section class="row mb-4">
+        <div class="col-12">
+            <div class="card chart-container">
+                <h5 class="card-title"><i class="fas fa-chart-line me-2"></i>Monthly Order Trends</h5>
+                {% if monthly_data %}
+                <canvas id="monthlyChart"></canvas>
+                {% else %}
+                <div class="alert alert-info text-center py-4" role="alert">
+                    <i class="fas fa-info-circle me-2"></i> No monthly order trend data available to display the chart.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+
+    <section class="row mb-4">
+        <div class="col-lg-8 col-md-12 mb-3">
+            <div class="card chart-container"> {# Re-using chart-container for consistent padding/flex #}
+                <h5 class="card-title"><i class="fas fa-tasks me-2"></i>Order Phase Progress</h5>
+                {# Check if phase_analysis data exists before showing counts #}
+                {% if phase_analysis %}
+                <div class="row text-center g-2">
+                    <div class="col-4 col-md-2">
+                        <div class="metric-number text-primary">{{ phase_analysis.bom_ready|default:0 }}</div>
+                        <small class="text-muted">BOM Ready</small>
+                    </div>
+                    <div class="col-4 col-md-2">
+                        <div class="metric-number text-info">{{ phase_analysis.kick_off_meeting|default:0 }}</div>
+                        <small class="text-muted">Kick Off</small>
+                    </div>
+                    <div class="col-4 col-md-2">
+                        <div class="metric-number text-warning">{{ phase_analysis.scaffolding_installation|default:0 }}</div>
+                        <small class="text-muted">Scaffolding</small>
+                    </div>
+                    <div class="col-4 col-md-2">
+                        <div class="metric-number text-danger">{{ phase_analysis.installation|default:0 }}</div>
+                        <small class="text-muted">Installation</small>
+                    </div>
+                    <div class="col-4 col-md-2">
+                        <div class="metric-number text-success">{{ phase_analysis.lift_handover|default:0 }}</div>
+                        <small class="text-muted">Handover</small>
+                    </div>
+                    <div class="col-4 col-md-2">
+                        <div class="metric-number text-primary">{{ phase_analysis.license_received|default:0 }}</div>
+                        <small class="text-muted">Licensed</small>
                     </div>
                 </div>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="chart-container">
-            <h5 class="mb-3"><i class="fas fa-user-tie me-2"></i>Supervisor Performance</h5>
-            {% for supervisor in supervisor_performance %}
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <div>
-                    <strong>{{ supervisor.get_full_name|default:supervisor.username }}</strong>
-                    <br>
-                    <small class="text-muted">{{ supervisor.completed_orders }}/{{ supervisor.total_orders }} completed</small>
+                {% else %}
+                <div class="alert alert-info text-center py-4" role="alert">
+                    <i class="fas fa-info-circle me-2"></i> No phase progress data available.
                 </div>
-                <div class="progress-ring">
-                    <svg class="progress-ring">
-                        <circle class="progress-ring-circle" />
-                        <circle class="progress-ring-progress"
-                                stroke-dashoffset="calc(188.5 - (188.5 * {{ supervisor.completion_percentage|default:0 }}) / 100)" />
-                    </svg>
-                </div>
+                {% endif %}
             </div>
-            {% endfor %}
         </div>
-    </div>
-</div>
-{% endif %}
+        <div class="col-lg-4 col-md-12 mb-3">
+            <div class="card chart-container"> {# Re-using chart-container for consistent padding/flex #}
+                <h5 class="card-title"><i class="fas fa-building me-2"></i>Top Sites</h5>
+                {% if top_sites %}
+                <ul class="list-group list-group-flush">
+                    {% for site in top_sites %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>{{ site.site_name }}</span>
+                        <span class="badge bg-primary rounded-pill">{{ site.order_count }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <div class="alert alert-info text-center py-4" role="alert">
+                    <i class="fas fa-info-circle me-2"></i> No top sites data available.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </section>
 
+    <section class="row mb-4">
+        <div class="col-lg-8 col-md-12 mb-3">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="fas fa-clock me-2"></i>Recent Activity</h5>
+                    {% if recent_activity %}
+                    <ul class="list-group list-group-flush">
+                        {% for order in recent_activity %}
+                        <li class="list-group-item activity-item">
+                            <div>
+                                <strong>{{ order.order_number }}</strong> - {{ order.site_name }}
+                                <br>
+                                <small class="text-muted">{{ order.equipment_number }}</small>
+                            </div>
+                            <div class="text-end">
+                                <span class="status-badge status-{{ order.status_css_class }}"> {# Using the new, pre-processed attribute #}
+                                    {{ order.status }}
+                                </span>
+                                <br>
+                                <small class="text-muted">{{ order.order_release|date:"M d, Y" }}</small>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <div class="alert alert-info text-center py-4" role="alert">
+                        <i class="fas fa-info-circle me-2"></i> No recent activity to display.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 col-md-12 mb-3">
+            <div class="card chart-container"> {# Consistent card styling #}
+                <h5 class="card-title"><i class="fas fa-user-tie me-2"></i>Supervisor Performance</h5>
+                {% if supervisor_performance %}
+                <ul class="list-group list-group-flush">
+                    {% for supervisor in supervisor_performance %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>{{ supervisor.get_full_name|default:supervisor.username }}</strong>
+                            <br>
+                            <small class="text-muted">{{ supervisor.completed_orders|default:0 }}/{{ supervisor.total_orders|default:0 }} completed</small>
+                        </div>
+                        <div class="progress-ring">
+                            <svg class="progress-ring">
+                                <circle class="progress-ring-circle" />
+                                {# Calculate circumference once for clarity #}
+                                {% with ring_circumference=201.06176 %} {# 2 * PI * 32 #}
+                                <circle class="progress-ring-progress"
+                                        stroke-dashoffset="calc({{ ring_circumference }} - ({{ ring_circumference }} * {{ supervisor.completion_percentage|default:0 }}) / 100)"
+                                        style="stroke: {% if supervisor.completion_percentage >= 80 %}var(--success-color){% elif supervisor.completion_percentage >= 50 %}var(--warning-color){% else %}var(--danger-color){% endif %};" {# Dynamic stroke color #}
+                                />
+                                {% endwith %}
+                            </svg>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <div class="alert alert-info text-center py-4" role="alert">
+                    <i class="fas fa-info-circle me-2"></i> No supervisor performance data available.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+    {% endif %}
+</main>
 {% endblock content %}
 
 {% block extra_js %}
-<!-- Chart.js -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    {% if is_admin %}
-    // Monthly Chart
-    const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
-    const monthlyData = {{ monthly_data|safe }};
+    // Helper function to get CSS variable values
+    function getCssVariable(name) {
+        return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    }
 
-    new Chart(monthlyCtx, {
-        type: 'line',
-        data: {
-            labels: monthlyData.map(d => d.month),
-            datasets: [{
-                label: 'Orders',
-                data: monthlyData.map(d => d.orders),
-                borderColor: '#007bff',
-                backgroundColor: 'rgba(0, 123, 255, 0.1)',
-                tension: 0.4,
-                fill: true
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: {
-                    display: false
-                }
+    // Status Chart (visible to all users)
+    const statusCtx = document.getElementById('statusChart');
+    if (statusCtx) { // Only initialize if element exists (i.e., status_data is not empty)
+        const statusData = {{ status_data|safe }};
+
+        new Chart(statusCtx.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: statusData.map(d => d.status),
+                datasets: [{
+                    data: statusData.map(d => d.count),
+                    backgroundColor: [
+                        getCssVariable('--success-color'), /* Completed */
+                        getCssVariable('--warning-color'),  /* In Progress */
+                        // Add more colors if more statuses are possible
+                        getCssVariable('--danger-color'), // Example for 'Overdue'
+                        getCssVariable('--info-color')    // Example for 'Pending'
+                    ],
+                    borderWidth: 0,
+                    hoverOffset: 8 // Slight pop-out effect on hover
+                }]
             },
-            scales: {
-                y: {
-                    beginAtZero: true
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '70%', // Make it a ring chart
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            boxWidth: 12,
+                            padding: 15,
+                            color: getCssVariable('--text-dark'),
+                            font: {
+                                size: 13
+                            }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed !== null) {
+                                    const value = context.parsed;
+                                    const total = context.dataset.data.reduce((sum, current) => sum + current, 0);
+                                    const percentage = total > 0 ? ((value / total) * 100).toFixed(1) + '%' : '0%';
+                                    label += `${value} (${percentage})`;
+                                }
+                                return label;
+                            }
+                        },
+                        backgroundColor: getCssVariable('--dark-bg'),
+                        titleColor: getCssVariable('--white-bg'),
+                        bodyColor: getCssVariable('--white-bg'),
+                        borderColor: getCssVariable('--border-color'),
+                        borderWidth: 1,
+                        padding: 10
+                    }
                 }
             }
-        }
-    });
+        });
+    }
 
-    // Status Chart
-    const statusCtx = document.getElementById('statusChart').getContext('2d');
-    const statusData = {{ status_data|safe }};
+    // Monthly Chart (Admin Only)
+    const monthlyCtx = document.getElementById('monthlyChart');
+    if (monthlyCtx) { // Only initialize if element exists
+        const monthlyData = {{ monthly_data|safe }};
 
-    new Chart(statusCtx, {
-        type: 'doughnut',
-        data: {
-            labels: statusData.map(d => d.status),
-            datasets: [{
-                data: statusData.map(d => d.count),
-                backgroundColor: ['#28a745', '#ffc107'],
-                borderWidth: 0
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: {
-                    position: 'bottom'
+        new Chart(monthlyCtx.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: monthlyData.map(d => d.month),
+                datasets: [{
+                    label: 'Orders',
+                    data: monthlyData.map(d => d.orders),
+                    borderColor: getCssVariable('--primary-color'),
+                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                    tension: 0.4, // Smooth curves
+                    fill: true,
+                    pointBackgroundColor: getCssVariable('--primary-color'),
+                    pointBorderColor: getCssVariable('--white-bg'),
+                    pointBorderWidth: 2,
+                    pointRadius: 5,
+                    pointHoverRadius: 7
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        backgroundColor: getCssVariable('--dark-bg'),
+                        titleColor: getCssVariable('--white-bg'),
+                        bodyColor: getCssVariable('--white-bg'),
+                        borderColor: getCssVariable('--border-color'),
+                        borderWidth: 1,
+                        padding: 10
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: getCssVariable('--border-color'),
+                            drawBorder: false // Don't draw the axis line
+                        },
+                        ticks: {
+                            color: getCssVariable('--text-muted'),
+                            precision: 0 // Ensure integer ticks if orders are always whole numbers
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            color: getCssVariable('--text-muted')
+                        }
+                    }
                 }
             }
-        }
-    });
-    {% endif %}
+        });
+    }
 
-    // Auto-refresh every 5 minutes
+    // Auto-refresh every 5 minutes (300000 milliseconds)
+    // Consider if this is always desirable in a production environment as it causes a full page reload.
+    // For large dashboards, consider AJAX updates for specific sections.
     setTimeout(function() {
         location.reload();
     }, 300000);
+
 </script>
 {% endblock extra_js %}

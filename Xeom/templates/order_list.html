@@ -55,9 +55,12 @@
 {% endblock extra_css %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <a href="{% url 'order_create' %}" class="btn btn-primary">
+<div class="container-fluid">
+    <a href="{% url 'order_create' %}" class="btn btn-primary float-end">
         <i class="fas fa-plus me-2"></i> Create New Order
+    </a>
+    <a href="{% url 'export_orders_xls' %} " class="btn btn-secondary float-end me-3">  
+        <i class="fas fa-file-excel me-2"></i> Download Excel
     </a>
 </div>
 
@@ -139,49 +142,49 @@
                                 <strong>{{ order.order_number }}</strong>
                             </a>
                         </td>
-                        <td>{{ order.equipment_number|default:"N/A" }}</td>
-                        <td>{{ order.agreement_number|default:"N/A" }}</td>
-                        <td>{{ order.site_name|default:"N/A" }}</td>
-                        <td>{{ order.block|default:"N/A" }}</td>
-                        <td>{{ order.lift_number|default:"N/A" }}</td>
-                        <td>{{ order.lift_quantity|default:"N/A" }}</td>
+                        <td>{{ order.equipment_number|default:"" }}</td>
+                        <td>{{ order.agreement_number|default:"" }}</td>
+                        <td>{{ order.site_name|default:"" }}</td>
+                        <td>{{ order.block|default:"" }}</td>
+                        <td>{{ order.lift_number|default:"" }}</td>
+                        <td>{{ order.lift_quantity|default:"" }}</td>
                         <td>{{ order.sales_executive.get_full_name|default:order.sales_executive.username }}</td>
-                        <td>{{ order.supervisor.get_full_name|default:"N/A" }}</td>
-                        <td>{{ order.order_release|date:"M d, Y"|default:"N/A" }}</td>
-                        <td>{{ order.supervisor_decided|date:"M d, Y"|default:"N/A" }}</td>
-                        <td>{{ order.bom_ready|date:"M d, Y"|default:"N/A" }}</td>
-                        <td>{{ order.gad_send_for_sign|date:"M d, Y"|default:"N/A" }}</td>
-                        <td>{{ order.kick_off_meeting|date:"M d, Y"|default:"N/A" }}</td>
-                        <td>{{ order.scaffolding_message|date:"M d, Y"|default:"N/A" }}</td>
-                        <td>{{ order.scaffolding_delivery|date:"M d, Y"|default:"N/A" }}</td>
-                        <td>{{ order.erector_file_ready|date:"M d, Y"|default:"N/A" }}</td>
-                        <td>{{ order.scaffolding_installation|date:"M d, Y"|default:"N/A" }}</td>
-                        <td>{{ order.reading_receipt|date:"M d, Y"|default:"N/A" }}</td>
+                        <td>{{ order.supervisor.get_full_name|default:"" }}</td>
+                        <td>{{ order.order_release|date:"M d, Y"|default:"" }}</td>
+                        <td>{{ order.supervisor_decided|date:"M d, Y"|default:"" }}</td>
+                        <td>{{ order.bom_ready|date:"M d, Y"|default:"" }}</td>
+                        <td>{{ order.gad_send_for_sign|date:"M d, Y"|default:"" }}</td>
+                        <td>{{ order.kick_off_meeting|date:"M d, Y"|default:"" }}</td>
+                        <td>{{ order.scaffolding_message|date:"M d, Y"|default:"" }}</td>
+                        <td>{{ order.scaffolding_delivery|date:"M d, Y"|default:"" }}</td>
+                        <td>{{ order.erector_file_ready|date:"M d, Y"|default:"" }}</td>
+                        <td>{{ order.scaffolding_installation|date:"M d, Y"|default:"" }}</td>
+                        <td>{{ order.reading_receipt|date:"M d, Y"|default:"" }}</td>
                         <td>
                             {% if order.po_release %}
                                 <span class="text-muted small">({{ order.po_release|length }} stages)</span>
                             {% else %}
-                                N/A
+                                 
                             {% endif %}
                         </td>
                         <td>
                             {% if order.material_dump %}
                                 <span class="text-muted small">({{ order.material_dump|length }} stages)</span>
                             {% else %}
-                                N/A
+                                 
                             {% endif %}
                         </td>
-                        <td>{{ order.installation|date:"M d, Y"|default:"N/A" }}</td>
-                        <td>{{ order.lift_handover|date:"M d, Y"|default:"N/A" }}</td>
-                        <td>{{ order.gad_sign_complete|date:"M d, Y"|default:"N/A" }}</td>
-                        <td>{{ order.form_a_submitted|date:"M d, Y"|default:"N/A" }}</td>
-                        <td>{{ order.form_a_permission_received|date:"M d, Y"|default:"N/A" }}</td>
-                        <td>{{ order.form_b_submitted|date:"M d, Y"|default:"N/A" }}</td>
-                        <td>{{ order.license_received|date:"M d, Y"|default:"N/A" }}</td>
-                        <td>{{ order.license_handover|date:"M d, Y"|default:"N/A" }}</td>
-                        <td>{{ order.handover_oc_submitted|date:"M d, Y"|default:"N/A" }}</td>
-                        <td>{{ order.email_to_maintenance|date:"M d, Y"|default:"N/A" }}</td>
-                        <td>{{ order.receipt_by_maintenance|date:"M d, Y"|default:"N/A" }}</td>
+                        <td>{{ order.installation|date:"M d, Y"|default:"" }}</td>
+                        <td>{{ order.lift_handover|date:"M d, Y"|default:"" }}</td>
+                        <td>{{ order.gad_sign_complete|date:"M d, Y"|default:"" }}</td>
+                        <td>{{ order.form_a_submitted|date:"M d, Y"|default:"" }}</td>
+                        <td>{{ order.form_a_permission_received|date:"M d, Y"|default:"" }}</td>
+                        <td>{{ order.form_b_submitted|date:"M d, Y"|default:"" }}</td>
+                        <td>{{ order.license_received|date:"M d, Y"|default:"" }}</td>
+                        <td>{{ order.license_handover|date:"M d, Y"|default:"" }}</td>
+                        <td>{{ order.handover_oc_submitted|date:"M d, Y"|default:"" }}</td>
+                        <td>{{ order.email_to_maintenance|date:"M d, Y"|default:"" }}</td>
+                        <td>{{ order.receipt_by_maintenance|date:"M d, Y"|default:"" }}</td>
                         <td>
                             {% if order.status == 'Completed' %}
                                 <span class="badge bg-success status-badge">{{ order.status }}</span>

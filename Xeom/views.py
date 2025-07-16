@@ -1,4 +1,4 @@
-from django.shortcuts import render, get_object_or_404, redirect
+from django.shortcuts import render, get_object_or_404, redirect, HttpResponse
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.contrib.auth.mixins import LoginRequiredMixin,PermissionRequiredMixin
 from django.urls import reverse_lazy
@@ -20,7 +20,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters
 from django.utils.decorators import method_decorator
 from django.contrib.auth.forms import AuthenticationForm
-
+import openpyxl # Import openpyxl
 
 ##################################################################################################################################
 ##################################################################################################################################
@@ -348,7 +348,7 @@ class OrderDeleteView(LoginRequiredMixin, PermissionRequiredMixin, DeleteView):
     template_name = 'order_confirm_delete.html'
     success_url = reverse_lazy('order_list')
     pk_url_kwarg = 'order_number'
-    permission_required = 'order.delete_order'
+    permission_required = 'Xeom.delete_order'
     
     def get_object(self):
         return get_object_or_404(order, order_number=self.kwargs['order_number'])
@@ -709,3 +709,90 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         })
         
         return context
+
+##################################################################################################################################
+##################################################################################################################################
+##################################################################################################################################
+##################################################################################################################################
+
+@login_required
+def export_orders_xls(request):
+    orders = order.objects.all().order_by('-order_release')
+
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    response['Content-Disposition'] = 'attachment; filename="orders.xlsx"'
+
+    workbook = openpyxl.Workbook()
+    worksheet = workbook.active
+    worksheet.title = 'Orders'
+
+    # Define your headers based on your table columns in order_list.html
+    headers = [
+        "Order Number", "Equipment No.", "Agreement No.", "Site Name", "Block", "Lift No.", "Lift Qty",
+        "Sales Executive", "Supervisor", "Order Release", "Supervisor Decided", "BOM Ready",
+        "GAD Send for Sign", "Kick Off Meeting", "Scaffolding Message", "Scaffolding Delivery",
+        "Erector File Ready", "Scaffolding Installation", "Reading Receipt", "PO Release",
+        "Material Dump", "Installation", "Lift Handover", "GAD Sign Complete", "Form A Submitted",
+        "Form A Permission Received", "Form B Submitted", "License Received", "License Handover",
+        "Handover OC Submitted", "Email to Maintenance", "Receipt by Maintenance", "Status"
+    ]
+    worksheet.append(headers)
+
+    # Populate data rows
+    for ord_obj in orders:
+        sales_executive_name = ord_obj.sales_executive.get_full_name() or ord_obj.sales_executive.username if ord_obj.sales_executive else ""
+        supervisor_name = ord_obj.supervisor.get_full_name() if ord_obj.supervisor else ""
+
+        # Handle JSON fields for PO Release and Material Dump
+        po_release_data = ""
+        if ord_obj.po_release and isinstance(ord_obj.po_release, list):
+            po_release_data = "; ".join([f"{item.get('date', '')} - {item.get('percentage', '')}" for item in ord_obj.po_release])
+
+        material_dump_data = ""
+        if ord_obj.material_dump and isinstance(ord_obj.material_dump, list):
+            material_dump_data = "; ".join([f"{item.get('date', '')} - {item.get('percentage', '')}" for item in ord_obj.material_dump])
+        installation_data = ""
+        if ord_obj.installation and isinstance(ord_obj.installation, list):
+            installation_data = "; ".join([f"{item.get('date', '')} - {item.get('percentage', '')}" for item in ord_obj.installation])
+
+        row_data = [
+            ord_obj.order_number,
+            ord_obj.equipment_number or "",
+            ord_obj.agreement_number or "",
+            ord_obj.site_name or "",
+            ord_obj.block or "",
+            ord_obj.lift_number or "",
+            ord_obj.lift_quantity or "",
+            sales_executive_name,
+            supervisor_name,
+            ord_obj.order_release.strftime("%Y-%m-%d") if ord_obj.order_release else "",
+            ord_obj.supervisor_decided.strftime("%Y-%m-%d") if ord_obj.supervisor_decided else "",
+            ord_obj.bom_ready.strftime("%Y-%m-%d") if ord_obj.bom_ready else "",
+            ord_obj.gad_send_for_sign.strftime("%Y-%m-%d") if ord_obj.gad_send_for_sign else "",
+            ord_obj.kick_off_meeting.strftime("%Y-%m-%d") if ord_obj.kick_off_meeting else "",
+            ord_obj.scaffolding_message.strftime("%Y-%m-%d") if ord_obj.scaffolding_message else "",
+            ord_obj.scaffolding_delivery.strftime("%Y-%m-%d") if ord_obj.scaffolding_delivery else "",
+            ord_obj.erector_file_ready.strftime("%Y-%m-%d") if ord_obj.erector_file_ready else "",
+            ord_obj.scaffolding_installation.strftime("%Y-%m-%d") if ord_obj.scaffolding_installation else "",
+            ord_obj.reading_receipt.strftime("%Y-%m-%d") if ord_obj.reading_receipt else "",
+            po_release_data,
+            material_dump_data,
+            installation_data,
+            ord_obj.lift_handover.strftime("%Y-%m-%d") if ord_obj.lift_handover else "",
+            ord_obj.gad_sign_complete.strftime("%Y-%m-%d") if ord_obj.gad_sign_complete else "",
+            ord_obj.form_a_submitted.strftime("%Y-%m-%d") if ord_obj.form_a_submitted else "",
+            ord_obj.form_a_permission_received.strftime("%Y-%m-%d") if ord_obj.form_a_permission_received else "",
+            ord_obj.form_b_submitted.strftime("%Y-%m-%d") if ord_obj.form_b_submitted else "",
+            ord_obj.license_received.strftime("%Y-%m-%d") if ord_obj.license_received else "",
+            ord_obj.license_handover.strftime("%Y-%m-%d") if ord_obj.license_handover else "",
+            ord_obj.handover_oc_submitted.strftime("%Y-%m-%d") if ord_obj.handover_oc_submitted else "",
+            ord_obj.email_to_maintenance.strftime("%Y-%m-%d") if ord_obj.email_to_maintenance else "",
+            ord_obj.receipt_by_maintenance.strftime("%Y-%m-%d") if ord_obj.receipt_by_maintenance else "",
+            ord_obj.status or ""
+        ]
+        worksheet.append(row_data)
+
+    workbook.save(response)
+    return response
