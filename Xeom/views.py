@@ -1,11 +1,12 @@
 from django.shortcuts import render, get_object_or_404, redirect, HttpResponse
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
+from django.contrib.auth.views import PasswordChangeView
 from django.contrib.auth.mixins import LoginRequiredMixin,PermissionRequiredMixin
 from django.urls import reverse_lazy
 from django.contrib import messages
 from django.http import JsonResponse
 from .models import order
-from .forms import OrderDetailForm, OrderCreateForm
+from .forms import OrderDetailForm, OrderCreateForm, UserPasswordChangeForm
 from django.contrib.auth.models import User
 from django.views.generic import TemplateView,View
 from django.db.models import Count, Q, Avg
@@ -444,10 +445,14 @@ class DashboardView(LoginRequiredMixin, TemplateView):
                                     pass
                         if json_dates:
                             last_completed_activity_date = max(json_dates)
-                else: # For DateFields
-                    if current_field_value:
-                        is_current_field_completed = True
-                        last_completed_activity_date = current_field_value # Update with the actual date
+                else: # For DateFields and ForeignKey fields
+                    try:
+                        # Your existing problematic code section
+                        days_pending = (today - last_completed_activity_date).days
+                    except AttributeError as e:
+                        print(f"Error details: {e}")
+                        print(f"Variable types - today: {type(today)}, last_completed_activity_date: {type(last_completed_activity_date)}")
+                        days_pending = 0
 
                 if not is_current_field_completed: # This activity is pending
                     prerequisites_met = True
@@ -712,6 +717,18 @@ class DashboardView(LoginRequiredMixin, TemplateView):
 
 ##################################################################################################################################
 ##################################################################################################################################
+
+class UserPasswordChangeView(PasswordChangeView):
+    """
+    Handles the user password change process.
+    - Uses the custom form for styling.
+    - Specifies the template to render.
+    - Redirects to the dashboard on success.
+    """
+    template_name = 'change_password.html'
+    form_class = UserPasswordChangeForm
+    success_url = reverse_lazy('dashboard') # Redirect to your dashboard after a successful change
+
 ##################################################################################################################################
 ##################################################################################################################################
 

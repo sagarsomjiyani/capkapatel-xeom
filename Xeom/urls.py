@@ -5,6 +5,7 @@ urlpatterns = [
     # Order CRUD URLs
     path('login/', views.LoginView.as_view(), name='login'),
     path('logout/', views.LogoutView.as_view(), name='logout'),
+    path('change-password/', views.UserPasswordChangeView.as_view(), name='change_password'),
     path('list/', views.OrderListView.as_view(), name='order_list'),
     path('dashboard/', views.DashboardView.as_view(), name='dashboard'),
     path('create/', views.OrderCreateView.as_view(), name='order_create'),

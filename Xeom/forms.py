@@ -6,7 +6,7 @@ from collections import OrderedDict
 from django.core.exceptions import ValidationError
 from django.forms.widgets import MultiWidget, TextInput, NumberInput, DateInput, Widget
 from django.forms.fields import MultiValueField, CharField, IntegerField, DateField, DecimalField, Field
-
+from django.contrib.auth.forms import PasswordChangeForm
 # --- Date field validation for restricting today -3 days ---
 
 class ValidatedDateInput(forms.DateInput):
@@ -69,11 +69,12 @@ class JSONListWidget(forms.widgets.Widget):
         context['widget']['initial_forms'] = value # Pass the list of dictionaries to the template
         
         # Add a dedicated boolean flag for readonly status to the context
-        context['widget']['is_readonly'] = attrs.get('data-readonly', 'false') == 'true'
-
+        context['widget']['is_readonly'] = attrs.get('readonly', 'false') == 'true'
+        
         # Ensure the value for the hidden input is a JSON string, defaulting to '[]' if empty
         if not value and not context['widget']['is_readonly']:
             context['widget']['value'] = '[]'
+            context['widget']['is_hidden'] = attrs.get('hidden', 'false')
         else:
             context['widget']['value'] = json.dumps(value)
 
@@ -178,6 +179,17 @@ class JSONListField(forms.Field):
                 raise ValidationError("Total percentage cannot exceed 100% across all items.")
             
 # --- Existing Forms (with updates for JSON fields) ---
+
+class UserPasswordChangeForm(PasswordChangeForm):
+    """
+    A custom password change form that applies Bootstrap styling.
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Apply Bootstrap's 'form-control' class to each field for consistent styling.
+        for field_name in self.fields:
+            self.fields[field_name].widget.attrs.update({'class': 'form-control'})
+
 class OrderCreateForm(forms.ModelForm):
     """
     Form for creating a new Order.
@@ -352,9 +364,9 @@ class OrderDetailForm(forms.ModelForm):
         'installation': 'Installation',
         'lift_handover': 'Lift Handover',
         'gad_sign_complete': 'GAD Sign Complete',
-        'form_a_submitted': 'A Form Submitted',
-        'form_a_permission_received': 'A Form Permission Received',
-        'form_b_submitted': 'B Form Submitted',
+        'form_a_submitted': 'Form - A Submitted',
+        'form_a_permission_received': 'Form - A Permission Received',
+        'form_b_submitted': 'Form - B Submitted',
         'license_received': 'License Received',
         'license_handover': 'License Handover',
         'handover_oc_submitted': 'Handover OC Submitted',

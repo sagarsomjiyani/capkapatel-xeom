@@ -1,5 +1,5 @@
 {# xeom/templates/json_list_widget.html #}
-
+{% if not widget.is_hidden %}
 <div class="json-list-widget" id="{{ widget.id }}">
     {# Hidden input to hold the JSON string value for the field #}
     {# widget.value here will be the JSON string prepared by JSONListWidget.get_context #}
@@ -14,18 +14,18 @@
                        class="form-control form-control-sm json-sl-no" placeholder="SL No." min="1"
                        value="{{ item.sl_no|default:"" }}" 
                        {# Use the is_readonly flag for readonly attribute #}
-                       {% if widget.is_readonly %}readonly{% endif %}>
+                       {% if item.sl_no %} readonly {% endif %} />
                 <input type="date" name="{{ widget.name }}_item_{{ forloop.counter0 }}_date"
-                       class="form-control form-control-sm json-date" value="{{ item.date|default:"" }}"
+                       class="form-control form-control-sm json-sl-no" value="{{ item.date|default:"" }}"
                        {# Use the is_readonly flag for readonly attribute #}
-                       {% if widget.is_readonly %}readonly{% endif %}>
+                        {% if item.sl_no %} readonly {% endif %} />
                 <input type="number" name="{{ widget.name }}_item_{{ forloop.counter0 }}_percentage"
                        class="form-control form-control-sm json-percentage" placeholder="Percentage" min="0" max="100"
                        value="{{ item.percentage|default:"" }}" 
                        {# Use the is_readonly flag for readonly attribute #}
-                       {% if widget.is_readonly %}readonly{% endif %}>
+                       {% if item.sl_no %} readonly {% endif %}  />
                 {# Only show remove button if not readonly #}
-                {% if not widget.is_readonly %}
+                {% if not item.sl_no %}
                 <button type="button" class="btn btn-outline-danger btn-sm remove-json-list-item">
                     <i class="fas fa-minus-circle"></i>
                 </button>
@@ -56,7 +56,7 @@
     </button>
     {% endif %}
 </div>
-
+{% endif %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Function to update the hidden JSON input
