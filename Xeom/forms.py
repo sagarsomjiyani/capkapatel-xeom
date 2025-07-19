@@ -7,6 +7,7 @@ from django.core.exceptions import ValidationError
 from django.forms.widgets import MultiWidget, TextInput, NumberInput, DateInput, Widget
 from django.forms.fields import MultiValueField, CharField, IntegerField, DateField, DecimalField, Field
 from django.contrib.auth.forms import PasswordChangeForm
+from django.core.validators import RegexValidator
 # --- Date field validation for restricting today -3 days ---
 
 class ValidatedDateInput(forms.DateInput):
@@ -75,6 +76,7 @@ class JSONListWidget(forms.widgets.Widget):
         if not value and not context['widget']['is_readonly']:
             context['widget']['value'] = '[]'
             context['widget']['is_hidden'] = attrs.get('hidden', 'false')
+            
         else:
             context['widget']['value'] = json.dumps(value)
 
@@ -195,6 +197,22 @@ class OrderCreateForm(forms.ModelForm):
     Form for creating a new Order.
     Includes only essential fields for initial order creation.
     """
+    order_number = forms.CharField(
+        max_length=100,
+        validators=[
+            RegexValidator(
+                regex=r'^[A-Za-z0-9\-_]+$',
+                message='Order number can only contain letters, numbers, hyphens (-), and underscores (_). No spaces or special characters allowed.',
+                code='invalid_order_number'
+            )
+        ],
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'e.g., ORD-2025-001 or ORD_2025_001',
+            'pattern': '[A-Za-z0-9\-_]+',
+            'title': 'Only letters, numbers, hyphens, and underscores allowed'
+        })
+    )
     class Meta:
         model = order
         # Fields to show for a new order creation
@@ -224,7 +242,7 @@ class OrderCreateForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         # Populate sales_executive dropdown with active users
         # You might want to filter users by a specific 'Sales' role if roles are defined
-        self.fields['sales_executive'].queryset = User.objects.filter(groups__name='Sales Person',is_active=True)
+        self.fields['sales_executive'].queryset = User.objects.filter(groups__name='Sales person',is_active=True)
         # Example of setting initial values or making fields required based on logic
         for field_name, field in self.fields.items():
             field.required = True # Make all initial fields required by default
@@ -237,6 +255,7 @@ class OrderDetailForm(forms.ModelForm):
     material_dump = JSONListField(required=False, label="Material Dump Stages")
     installation = JSONListField(required=False, label="Installation Stages")
     
+    
     class Meta:
         model = order
         basic_fields = [
@@ -246,16 +265,17 @@ class OrderDetailForm(forms.ModelForm):
         add_fields = [
             'order_release', 'supervisor' , 'bom_ready', 'gad_send_for_sign',
             'kick_off_meeting', 'scaffolding_message', 'scaffolding_delivery','erector', 
-            'erector_file_ready', 'scaffolding_installation', 'reading_receipt',
+            'erector_file_ready', 'scaffolding_installation', 'reading_receipt','po_release', 'material_dump','installation',
             'lift_handover', 'gad_sign_complete', 'form_a_submitted',
             'form_a_permission_received', 'form_b_submitted', 'license_received',
             'license_handover', 'handover_oc_submitted', 'email_to_maintenance',
             'receipt_by_maintenance', 'status'
         ]
-        fields = basic_fields + add_fields + ['po_release', 'material_dump','installation']
+        fields = basic_fields + add_fields 
 
         widgets = {
-            'order_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter order number',  'readonly': True}),
+            'order_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter order number',  'readonly': True, 'pattern': '[A-Za-z0-9\-_]+',
+            'title': 'Only letters, numbers, hyphens, and underscores allowed'}),
             'equipment_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter equipment number', 'readonly': True}),
             'agreement_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter agreement number','readonly': True}),
             'site_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter site name',  'readonly': True}),
@@ -385,7 +405,7 @@ class OrderDetailForm(forms.ModelForm):
         self.user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
 
-        self.fields['sales_executive'].queryset = User.objects.filter(groups__name='Sales Person',is_active=True)
+        self.fields['sales_executive'].queryset = User.objects.filter(groups__name='Sales person',is_active=True)
         self.fields['supervisor'].queryset = User.objects.filter(groups__name='Supervisor',is_active=True)
 
         if self.user:
