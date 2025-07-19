@@ -209,7 +209,7 @@ class OrderCreateForm(forms.ModelForm):
         widget=forms.TextInput(attrs={
             'class': 'form-control',
             'placeholder': 'e.g., ORD-2025-001 or ORD_2025_001',
-            'pattern': '[A-Za-z0-9\-_]+',
+            'pattern': r'[A-Za-z0-9\-_]+',
             'title': 'Only letters, numbers, hyphens, and underscores allowed'
         })
     )
@@ -274,8 +274,7 @@ class OrderDetailForm(forms.ModelForm):
         fields = basic_fields + add_fields 
 
         widgets = {
-            'order_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter order number',  'readonly': True, 'pattern': '[A-Za-z0-9\-_]+',
-            'title': 'Only letters, numbers, hyphens, and underscores allowed'}),
+            'order_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter order number',  'readonly': True}),
             'equipment_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter equipment number', 'readonly': True}),
             'agreement_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter agreement number','readonly': True}),
             'site_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter site name',  'readonly': True}),
